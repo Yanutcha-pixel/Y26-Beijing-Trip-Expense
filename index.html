@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Beijing Trip Expense</title>
+  <style>
+    :root{
+      --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
+      --accent:#111827;--accent-soft:#eef0f3;--danger:#b42318;
+      --s1:#5b7c99;--s2:#8c6f56;--s3:#6b8f71;--s4:#806f9a;--s5:#a37373;--s6:#a58b52;
+    }
+    *{box-sizing:border-box}
+    html{background:var(--bg)}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+    button,input,select{font:inherit}
+    button,input,select{min-height:48px}
+    button{cursor:pointer}
+    .app{max-width:760px;margin:0 auto;padding:16px 14px 64px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:16px;margin-bottom:14px}
+    .hero{padding:18px}
+    .eyebrow,.muted{color:var(--muted);font-size:13px}
+    .hero-value{font-size:34px;font-weight:750;letter-spacing:-.8px;margin-top:3px}
+    .hero-sub{color:var(--muted);font-size:14px;margin-top:3px}
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+    .stat{border:1px solid var(--border);border-radius:14px;padding:12px}
+    .stat-value{font-size:18px;font-weight:700;margin-top:4px}
+    h1,h2{margin:0}
+    h2{font-size:18px}
+    .section-head{display:flex;justify-content:space-between;gap:12px;align-items:start;margin-bottom:14px}
+    .field{margin-bottom:14px}
+    label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+    input,select{width:100%;border:1px solid var(--border);border-radius:14px;padding:0 13px;background:#fff;color:var(--text);font-size:16px}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .inline{display:flex;gap:8px}
+    .inline select,.inline input{min-width:0;flex:1}
+    .btn{border:1px solid var(--border);border-radius:14px;background:#fff;color:var(--text);padding:0 14px;font-weight:650}
+    .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);width:100%;min-height:54px}
+    .btn-danger{color:var(--danger)}
+    .btn-small{min-height:42px;padding:0 12px;font-size:14px}
+    .hidden{display:none!important}
+    .panel{border:1px solid var(--border);border-radius:15px;padding:12px;background:#fafafa;margin-top:8px}
+    .preview{background:var(--accent-soft);border-radius:15px;padding:14px;margin:8px 0 14px}
+    .preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .big{font-size:20px;font-weight:750}
+    .expense{border:1px solid var(--border);border-radius:17px;padding:14px;margin-top:10px;background:#fff}
+    .expense-top{display:flex;gap:10px;justify-content:space-between;align-items:start}
+    .expense-title{font-weight:700}
+    .expense-net{font-size:22px;font-weight:750;margin-top:9px}
+    .actions{display:flex;gap:6px;flex-direction:column}
+    .repay{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:13px;padding:9px 11px;margin-top:12px}
+    .repay input{width:20px;height:20px;min-height:0}
+    .status{font-size:12px;color:var(--muted);margin-top:4px}
+    .chart-wrap{display:grid;grid-template-columns:210px 1fr;gap:18px;align-items:center}
+    .chart{width:100%;max-width:210px;margin:auto}
+    .legend-row{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--border);border-radius:12px;padding:9px 11px;margin-bottom:7px;font-size:14px}
+    .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px}
+    .manager-row{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:12px;padding:8px 9px;margin-top:7px}
+    .manager-row span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis}
+    .sync-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
+    .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    @media(max-width:560px){
+      .app{padding:12px 10px 48px}
+      .card{border-radius:18px;padding:14px}
+      .hero-value{font-size:30px}
+      .row2{grid-template-columns:1fr}
+      .chart-wrap{grid-template-columns:1fr}
+      .actions{flex-direction:row}
+      .expense-top{flex-direction:column}
+      .actions .btn{flex:1}
+    }
+  </style>
+</head>
+<body>
+<main class="app">
+  <section class="card hero">
+    <div class="eyebrow">Net Expense ของเรา</div>
+    <div id="netExpense" class="hero-value">฿0</div>
+    <div id="netExpenseCny" class="hero-sub">≈ ¥0</div>
+    <div class="stats">
+      <div class="stat"><div class="eyebrow">ต้องจ่ายคืน</div><div id="outstanding" class="stat-value">฿0</div></div>
+      <div class="stat"><div class="eyebrow">ยอดรวมที่บันทึก</div><div id="groupSpend" class="stat-value">฿0</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <div><h2 id="formTitle">เพิ่มรายจ่าย</h2><div class="muted">Beijing · 22–28 Nov 2026</div></div>
+      <button id="cancelEdit" class="btn btn-small hidden" type="button">ยกเลิก</button>
+    </div>
+
+    <form id="expenseForm">
+      <div class="field">
+        <label for="detail">เรื่องที่จ่าย</label>
+        <input id="detail" placeholder="เช่น มื้อเย็นร้านเป็ดปักกิ่ง" required>
+      </div>
+
+      <div class="field">
+        <label for="category">ประเภท</label>
+        <div class="inline"><select id="category"></select><button id="showAddCategory" class="btn" type="button">＋</button></div>
+        <div id="categoryManager" class="panel hidden">
+          <div class="inline"><input id="newCategory" placeholder="ชื่อประเภทใหม่"><button id="saveCategory" class="btn" type="button">Add</button></div>
+          <div id="categoryList"></div>
+          <button id="closeCategoryManager" class="btn" type="button" style="width:100%;margin-top:8px">Done</button>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field"><label for="currency">สกุลเงิน</label><select id="currency"><option value="CNY">CNY ¥</option><option value="THB">THB ฿</option></select></div>
+        <div class="field"><label for="amount">ยอดทั้งหมด</label><input id="amount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required></div>
+      </div>
+
+      <div class="row2">
+        <div class="field"><label for="fx">FX <span class="muted">· 1 CNY = ? THB</span></label><input id="fx" type="number" min="0.01" step="0.0001" inputmode="decimal" value="4.60"></div>
+        <div class="field"><label for="splitCount">หารกี่คน <span class="muted">· รวมเราด้วย</span></label><select id="splitCount"><option selected>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+      </div>
+
+      <div class="field"><label for="date">วันจ่าย</label><input id="date" type="date" min="2026-11-22" max="2026-11-28" value="2026-11-22"></div>
+      <div class="field"><label for="payer">จ่ายโดยใคร</label><select id="payer"><option>Gift</option><option>Pupple</option><option>Nutty</option><option>KT</option><option>Snook</option></select></div>
+
+      <div class="field">
+        <label for="paymentMethod">Payment Method</label>
+        <div class="inline"><select id="paymentMethod"></select><button id="managePayment" class="btn" type="button">Manage</button></div>
+        <div id="paymentManager" class="panel hidden">
+          <div class="inline"><input id="newPayment" placeholder="เพิ่มวิธีจ่ายใหม่"><button id="savePayment" class="btn" type="button">Add</button></div>
+          <div id="paymentList"></div>
+          <button id="closePaymentManager" class="btn" type="button" style="width:100%;margin-top:8px">Done</button>
+        </div>
+      </div>
+
+      <div id="preview" class="preview">กรอกยอดเงินเพื่อดู Net Expense</div>
+      <button id="submitBtn" class="btn btn-primary" type="submit">บันทึกรายจ่าย</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>สัดส่วน Net Expense</h2>
+    <div class="muted">คิดเฉพาะค่าใช้จ่ายส่วนของเรา</div>
+    <div class="chart-wrap" style="margin-top:14px">
+      <svg id="pieChart" class="chart" viewBox="0 0 200 200" aria-label="Pie chart"></svg>
+      <div id="pieLegend"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>รายการทั้งหมด</h2>
+    <div class="muted">ถ้าคนอื่นจ่ายก่อน ติ๊กเมื่อ Gift จ่ายคืนแล้ว</div>
+    <select id="filterCategory" style="margin-top:12px"></select>
+    <div id="expenseList"></div>
+  </section>
+
+  <section class="card">
+    <h2>Excel Online Sync</h2>
+    <div class="muted">Optional · ใช้ Power Automate / Microsoft Graph เป็นตัวกลาง</div>
+    <div class="field" style="margin-top:12px">
+      <label for="syncUrl">Power Automate HTTP URL</label>
+      <input id="syncUrl" type="url" placeholder="วาง URL ของ Flow ที่รับข้อมูล">
+    </div>
+    <div class="toolbar">
+      <button id="syncNow" class="btn" type="button">Sync ตอนนี้</button>
+      <button id="exportJson" class="btn" type="button">Export JSON</button>
+    </div>
+    <div id="syncStatus" class="sync-note">ข้อมูลจะถูกเก็บในเครื่องนี้อัตโนมัติก่อนเสมอ แม้ยังไม่ได้เชื่อม Excel Online</div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const ME = 'Gift';
+  const STORAGE_KEY = 'beijing-expense-2026-v1';
+  const SETTINGS_KEY = 'beijing-expense-settings-v1';
+  const colors = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)'];
+
+  let state = {
+    expenses: [],
+    editingId: null,
+    categories: ['อาหาร','คาเฟ่ / เครื่องดื่ม','เดินทาง','โรงแรม','ตั๋ว / สถานที่เที่ยว','Shopping','SIM / Internet','ของฝาก','อื่น ๆ'],
+    payments: ['Cash','Boarding Card','Credit Card'],
+    categoryEditing: null,
+    paymentEditing: null
+  };
+
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fmtTHB = n => '฿' + Number(n || 0).toLocaleString('th-TH',{maximumFractionDigits:2});
+  const fmtCNY = n => '¥' + Number(n || 0).toLocaleString('zh-CN',{maximumFractionDigits:2});
+
+  function load(){
+    try{
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+      if(saved && Array.isArray(saved.expenses)) state.expenses = saved.expenses;
+      if(settings){
+        if(Array.isArray(settings.categories)) state.categories = settings.categories;
+        if(Array.isArray(settings.payments)) state.payments = settings.payments;
+        if(settings.syncUrl) $('syncUrl').value = settings.syncUrl;
+      }
+    }catch(e){}
+  }
+  function persist(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({expenses:state.expenses}));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      categories:state.categories,payments:state.payments,syncUrl:$('syncUrl').value.trim()
+    }));
+  }
+
+  function renderCategories(selected){
+    const cur = selected || $('category').value || state.categories[0] || '';
+    $('category').innerHTML = state.categories.length ? state.categories.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('') : '<option value="">ไม่มีประเภท</option>';
+    if(state.categories.includes(cur)) $('category').value = cur;
+    const fc = $('filterCategory').value;
+    $('filterCategory').innerHTML = '<option value="">ทุกประเภท</option>' + state.categories.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    if(state.categories.includes(fc)) $('filterCategory').value = fc;
+    $('categoryList').innerHTML = state.categories.map((x,i)=>`<div class="manager-row"><span>${esc(x)}</span><button class="btn btn-small" data-cat-edit="${i}" type="button">Edit</button><button class="btn btn-small btn-danger" data-cat-del="${i}" type="button">Delete</button></div>`).join('');
+  }
+
+  function renderPayments(selected){
+    const cur = selected || $('paymentMethod').value || state.payments[0] || '';
+    $('paymentMethod').innerHTML = state.payments.length ? state.payments.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('') : '<option value="">ไม่มี Payment Method</option>';
+    if(state.payments.includes(cur)) $('paymentMethod').value = cur;
+    $('paymentList').innerHTML = state.payments.map((x,i)=>`<div class="manager-row"><span>${esc(x)}</span><button class="btn btn-small" data-pay-edit="${i}" type="button">Edit</button><button class="btn btn-small btn-danger" data-pay-del="${i}" type="button">Delete</button></div>`).join('');
+  }
+
+  function calc(){
+    const amount = Math.max(0, parseFloat($('amount').value) || 0);
+    const fx = Math.max(.0001, parseFloat($('fx').value) || 4.6);
+    const split = Math.max(1, parseInt($('splitCount').value,10) || 1);
+    const currency = $('currency').value;
+    const totalTHB = currency === 'THB' ? amount : amount * fx;
+    const totalCNY = currency === 'CNY' ? amount : amount / fx;
+    return {amount,fx,split,currency,totalTHB,totalCNY,myTHB:totalTHB/split,myCNY:totalCNY/split};
+  }
+
+  function preview(){
+    const x = calc(), payer = $('payer').value;
+    if(!x.amount){ $('preview').textContent='กรอกยอดเงินเพื่อดู Net Expense'; return; }
+    $('preview').innerHTML =
+      `<div class="preview-grid">
+        <div><div class="muted">ยอดรายการ</div><strong>${fmtTHB(x.totalTHB)}</strong></div>
+        <div><div class="muted">หาร ${x.split} คน</div><strong>${fmtTHB(x.myTHB)}/คน</strong></div>
+      </div>
+      <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+        <div class="muted">Net Expense ของเรา</div>
+        <div class="big">${fmtTHB(x.myTHB)} <span class="muted">≈ ${fmtCNY(x.myCNY)}</span></div>
+        <div class="muted" style="margin-top:5px">${payer===ME?'เราจ่ายรายการนี้เอง':esc(payer)+' จ่ายก่อน — เราต้องคืน '+fmtTHB(x.myTHB)}</div>
+      </div>`;
+  }
+
+  function renderPie(net){
+    const sums = {};
+    state.expenses.forEach(x => sums[x.category] = (sums[x.category] || 0) + x.myTHB);
+    const entries = Object.entries(sums).sort((a,b)=>b[1]-a[1]);
+    const svg = $('pieChart');
+    if(!entries.length || !net){
+      svg.innerHTML='<circle cx="100" cy="100" r="72" fill="none" stroke="var(--border)" stroke-width="32"></circle><text x="100" y="104" text-anchor="middle" fill="var(--muted)" font-size="12">ยังไม่มีรายจ่าย</text>';
+      $('pieLegend').innerHTML=''; return;
+    }
+    const circ=2*Math.PI*72; let off=0, out='';
+    entries.forEach(([name,val],i)=>{
+      const d=val/net*circ;
+      out += `<circle cx="100" cy="100" r="72" fill="none" stroke="${colors[i%colors.length]}" stroke-width="32" stroke-dasharray="${d} ${circ-d}" stroke-dashoffset="${-off}" transform="rotate(-90 100 100)"></circle>`;
+      off += d;
+    });
+    svg.innerHTML = out + `<circle cx="100" cy="100" r="49" fill="var(--card)"></circle><text x="100" y="94" text-anchor="middle" fill="var(--muted)" font-size="11">Net Expense</text><text x="100" y="114" text-anchor="middle" fill="var(--text)" font-size="15" font-weight="700">${fmtTHB(net)}</text>`;
+    $('pieLegend').innerHTML = entries.map(([name,val],i)=>`<div class="legend-row"><span><span class="dot" style="background:${colors[i%colors.length]}"></span>${esc(name)}</span><span><strong>${Math.round(val/net*100)}%</strong> · ${fmtTHB(val)}</span></div>`).join('');
+  }
+
+  function render(){
+    const filter = $('filterCategory').value;
+    const rows = filter ? state.expenses.filter(x=>x.category===filter) : state.expenses;
+    const net = state.expenses.reduce((s,x)=>s+x.myTHB,0);
+    const netCny = state.expenses.reduce((s,x)=>s+x.myCNY,0);
+    const group = state.expenses.reduce((s,x)=>s+x.totalTHB,0);
+    const due = state.expenses.filter(x=>x.payer!==ME&&!x.repaid).reduce((s,x)=>s+x.myTHB,0);
+    $('netExpense').textContent=fmtTHB(net);
+    $('netExpenseCny').textContent='≈ '+fmtCNY(netCny);
+    $('groupSpend').textContent=fmtTHB(group);
+    $('outstanding').textContent=fmtTHB(due);
+
+    $('expenseList').innerHTML = rows.length ? rows.map(x => `
+      <article class="expense">
+        <div class="expense-top">
+          <div style="min-width:0;flex:1">
+            <div class="expense-title">${esc(x.detail)}</div>
+            <div class="muted">${esc(x.category)} · ${x.date.split('-').reverse().join('/')}</div>
+            <div class="muted" style="margin-top:10px">Net Expense ของเรา</div>
+            <div class="expense-net">${fmtTHB(x.myTHB)}</div>
+            <div class="muted">ยอดทั้งหมด ${fmtTHB(x.totalTHB)} · หาร ${x.split} คน</div>
+            <div style="font-size:14px;margin-top:8px">จ่ายโดย ${esc(x.payer)}</div>
+            <div class="muted">Payment Method: ${esc(x.payment || '-')}</div>
+            ${x.payer!==ME ? `<label class="repay"><input type="checkbox" data-repaid="${x.id}" ${x.repaid?'checked':''}><span>จ่ายคืนแล้ว</span></label><div class="status">Status: ${x.repaid?'จ่ายคืนแล้ว':'ยังต้องจ่ายคืน'}</div>` : `<div class="status">Status: เราจ่ายเอง</div>`}
+          </div>
+          <div class="actions">
+            <button class="btn btn-small" type="button" data-edit="${x.id}">Edit</button>
+            <button class="btn btn-small btn-danger" type="button" data-del="${x.id}">ลบ</button>
+          </div>
+        </div>
+      </article>`).join('') : '<div class="muted" style="text-align:center;padding:24px 0">ยังไม่มีรายจ่าย</div>';
+    renderPie(net);
+    persist();
+  }
+
+  function resetForm(){
+    state.editingId=null;
+    $('formTitle').textContent='เพิ่มรายจ่าย';
+    $('submitBtn').textContent='บันทึกรายจ่าย';
+    $('cancelEdit').classList.add('hidden');
+    $('detail').value='';
+    $('amount').value='';
+    $('splitCount').value='1';
+    preview();
+  }
+
+  $('expenseForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const x=calc(), existing=state.expenses.find(v=>v.id===state.editingId);
+    const rec={
+      id:state.editingId||Date.now(),date:$('date').value,detail:$('detail').value.trim(),
+      category:$('category').value,currency:x.currency,amount:x.amount,fx:x.fx,split:x.split,
+      payer:$('payer').value,payment:$('paymentMethod').value,totalTHB:x.totalTHB,totalCNY:x.totalCNY,
+      myTHB:x.myTHB,myCNY:x.myCNY,repaid:$('payer').value===ME?true:(existing?existing.repaid:false),
+      updatedAt:new Date().toISOString()
+    };
+    if(!rec.detail||!rec.amount)return;
+    if(state.editingId){
+      const i=state.expenses.findIndex(v=>v.id===state.editingId);
+      if(i>=0) state.expenses[i]=rec;
+    }else state.expenses.unshift(rec);
+    resetForm(); render();
+  });
+
+  ['amount','fx','currency','splitCount','payer'].forEach(id=>$(id).addEventListener('input',preview));
+  $('filterCategory').addEventListener('change',render);
+  $('cancelEdit').addEventListener('click',resetForm);
+
+  $('expenseList').addEventListener('change',e=>{
+    const cb=e.target.closest('[data-repaid]'); if(!cb)return;
+    const x=state.expenses.find(v=>v.id===Number(cb.dataset.repaid));
+    if(x){x.repaid=cb.checked;x.updatedAt=new Date().toISOString();render();}
+  });
+  $('expenseList').addEventListener('click',e=>{
+    const eb=e.target.closest('[data-edit]'), db=e.target.closest('[data-del]');
+    if(eb){
+      const x=state.expenses.find(v=>v.id===Number(eb.dataset.edit)); if(!x)return;
+      state.editingId=x.id; $('formTitle').textContent='แก้ไขรายจ่าย'; $('submitBtn').textContent='บันทึกการแก้ไข'; $('cancelEdit').classList.remove('hidden');
+      $('date').value=x.date; renderCategories(x.category); $('detail').value=x.detail; $('currency').value=x.currency;
+      $('amount').value=x.amount; $('fx').value=x.fx; $('splitCount').value=String(x.split); $('payer').value=x.payer; renderPayments(x.payment); preview();
+      window.scrollTo({top:$('formTitle').getBoundingClientRect().top + window.scrollY - 20,behavior:'smooth'});
+    }
+    if(db){ state.expenses=state.expenses.filter(v=>v.id!==Number(db.dataset.del)); render(); }
+  });
+
+  $('showAddCategory').addEventListener('click',()=>$('categoryManager').classList.toggle('hidden'));
+  $('closeCategoryManager').addEventListener('click',()=>$('categoryManager').classList.add('hidden'));
+  $('saveCategory').addEventListener('click',()=>{
+    const n=$('newCategory').value.trim(); if(!n)return;
+    if(state.categoryEditing!==null){
+      const old=state.categories[state.categoryEditing]; state.categories[state.categoryEditing]=n;
+      state.expenses.forEach(x=>{if(x.category===old)x.category=n;}); state.categoryEditing=null; $('saveCategory').textContent='Add';
+    }else if(!state.categories.some(x=>x.toLowerCase()===n.toLowerCase())) state.categories.push(n);
+    $('newCategory').value=''; renderCategories(n); render();
+  });
+  $('categoryList').addEventListener('click',e=>{
+    const eb=e.target.closest('[data-cat-edit]'),db=e.target.closest('[data-cat-del]');
+    if(eb){const i=Number(eb.dataset.catEdit);state.categoryEditing=i;$('newCategory').value=state.categories[i];$('saveCategory').textContent='Save';}
+    if(db){const i=Number(db.dataset.catDel),old=state.categories[i]; if(state.expenses.some(x=>x.category===old)) return alert('ยังมีรายการที่ใช้ประเภทนี้อยู่ กรุณาแก้รายการก่อนลบ'); state.categories.splice(i,1);renderCategories();render();}
+  });
+
+  $('managePayment').addEventListener('click',()=>$('paymentManager').classList.toggle('hidden'));
+  $('closePaymentManager').addEventListener('click',()=>$('paymentManager').classList.add('hidden'));
+  $('savePayment').addEventListener('click',()=>{
+    const n=$('newPayment').value.trim(); if(!n)return;
+    if(state.paymentEditing!==null){
+      const old=state.payments[state.paymentEditing]; state.payments[state.paymentEditing]=n;
+      state.expenses.forEach(x=>{if(x.payment===old)x.payment=n;}); state.paymentEditing=null; $('savePayment').textContent='Add';
+    }else if(!state.payments.some(x=>x.toLowerCase()===n.toLowerCase())) state.payments.push(n);
+    $('newPayment').value=''; renderPayments(n); render();
+  });
+  $('paymentList').addEventListener('click',e=>{
+    const eb=e.target.closest('[data-pay-edit]'),db=e.target.closest('[data-pay-del]');
+    if(eb){const i=Number(eb.dataset.payEdit);state.paymentEditing=i;$('newPayment').value=state.payments[i];$('savePayment').textContent='Save';}
+    if(db){const i=Number(db.dataset.payDel),old=state.payments[i]; if(state.expenses.some(x=>x.payment===old)) return alert('ยังมีรายการที่ใช้ Payment Method นี้อยู่ กรุณาแก้รายการก่อนลบ'); state.payments.splice(i,1);renderPayments();render();}
+  });
+
+  $('syncUrl').addEventListener('change',persist);
+  $('syncNow').addEventListener('click',async()=>{
+    const url=$('syncUrl').value.trim();
+    if(!url){$('syncStatus').textContent='กรุณาวาง Power Automate HTTP URL ก่อน';return;}
+    $('syncStatus').textContent='กำลัง Sync...';
+    try{
+      const payload={trip:'Beijing 22-28 Nov 2026',owner:ME,syncedAt:new Date().toISOString(),expenses:state.expenses};
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      $('syncStatus').textContent='Sync สำเร็จ';
+      persist();
+    }catch(err){
+      $('syncStatus').textContent='Sync ไม่สำเร็จ: '+err.message+' · ข้อมูลในเครื่องยังอยู่ครบ';
+    }
+  });
+
+  $('exportJson').addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify({trip:'Beijing 22-28 Nov 2026',expenses:state.expenses},null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='beijing-expenses.json';a.click();URL.revokeObjectURL(a.href);
+  });
+
+  load(); renderCategories(); renderPayments(); preview(); render();
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  }
+})();
+</script>
+</body>
+</html>

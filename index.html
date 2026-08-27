@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: receivable-v6 -->
+  <!-- app-version: edit-delete-fix-v8 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -90,6 +90,33 @@
 
     .summary-stack{margin-top:16px}
     .stat-wide{margin-bottom:10px}
+
+
+    .receivable-box{margin-top:12px;border:1px solid var(--border);border-radius:14px;padding:11px;background:#fafafa}
+    .receivable-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .receivable-title{font-size:13px;font-weight:700}
+    .receivable-summary{font-size:12px;color:var(--muted);margin-top:2px}
+    .receivable-toggle{min-height:38px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:0 10px;font-size:13px;font-weight:650}
+    .receivable-list{margin-top:8px;border-top:1px solid var(--border);padding-top:5px}
+    .receivable-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:44px}
+    .receivable-row input{width:20px;height:20px;min-height:0}
+    .receivable-row .paid{color:var(--muted);text-decoration:line-through}
+    .receivable-row .amount{font-size:13px;color:var(--muted)}
+
+
+    .confirm-backdrop{
+      position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.28);
+      display:flex;align-items:center;justify-content:center;padding:20px
+    }
+    .confirm-backdrop.hidden{display:none!important}
+    .confirm-dialog{
+      width:min(92vw,420px);background:#fff;border:1px solid var(--border);
+      border-radius:18px;padding:18px
+    }
+    .confirm-title{font-size:18px;font-weight:750}
+    .confirm-text{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.5}
+    .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+    .confirm-delete{background:#fff;color:var(--danger);border-color:var(--danger)}
 
 </style>
 </head>
@@ -251,6 +278,18 @@
     </div>
     <div id="syncStatus" class="sync-note">ข้อมูลจะถูกเก็บในเครื่องนี้อัตโนมัติก่อนเสมอ แม้ยังไม่ได้เชื่อม Excel Online</div>
   </section>
+
+  <div id="deleteDialog" class="confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle">
+    <div class="confirm-dialog">
+      <div id="deleteDialogTitle" class="confirm-title">ยืนยันการลบรายการ</div>
+      <div id="deleteDialogText" class="confirm-text">ต้องการลบรายการนี้หรือไม่?</div>
+      <div class="confirm-actions">
+        <button id="cancelDelete" type="button" class="btn">ยกเลิก</button>
+        <button id="confirmDelete" type="button" class="btn confirm-delete">ลบรายการ</button>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -260,6 +299,9 @@
   const STORAGE_KEY = 'beijing-expense-2026-v1';
   const SETTINGS_KEY = 'beijing-expense-settings-v1';
   const colors = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)'];
+
+  const collapsedReceivables = new Set();
+  let deletePendingId = null;
 
   let state = {
     expenses: [],
@@ -368,18 +410,32 @@
   function preview(){
     const x = calc(), payers=selectedPayers();
     if(!x.amount){ $('preview').textContent='กรอกยอดเงินเพื่อดู Net Expense'; return; }
+    const participants=x.participants;
+    const othersWhoOwe = payers.includes(ME)
+      ? participants.filter(p=>p!==ME && !payers.includes(p))
+      : [];
+    let paymentNote='';
+    if(!x.includesMe){
+      paymentNote='G. ไม่ได้ร่วมหารรายการนี้';
+    }else if(payers.includes(ME) && othersWhoOwe.length){
+      paymentNote=`เราจ่ายก่อน · รอรับคืนจาก ${othersWhoOwe.length} คน`;
+    }else if(payers.includes(ME)){
+      paymentNote='เราอยู่ในคนที่จ่ายรายการนี้';
+    }else{
+      paymentNote=`${esc(payers.map(p=>PEOPLE_LABEL[p]||p).join(', '))} จ่ายก่อน — เราต้องคืน ${fmtTHB(x.myTHB)}`;
+    }
+
     $('preview').innerHTML =
       `<div class="preview-grid">
         <div><div class="muted">ยอดรายการ</div><strong>${fmtTHB(x.totalTHB)}</strong></div>
-        <div><div class="muted">ใครหารบ้าง</div><strong>${x.split?x.participants.map(p=>PEOPLE_LABEL[p]||p).join(', '):'-'}</strong></div>
+        <div><div class="muted">ใครหารบ้าง</div><strong>${x.split?participants.map(p=>PEOPLE_LABEL[p]||p).join(', '):'-'}</strong></div>
       </div>
       <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
         <div class="muted">Net Expense ของเรา</div>
         <div class="big">${fmtTHB(x.myTHB)} <span class="muted">≈ ${fmtCNY(x.myCNY)}</span></div>
-        <div class="muted" style="margin-top:5px">${!x.includesMe?'G. ไม่ได้ร่วมหารรายการนี้':(payer===ME?'เราจ่ายรายการนี้เอง':esc(payer)+' จ่ายก่อน — เราต้องคืน '+fmtTHB(x.myTHB))}</div>
+        <div class="muted" style="margin-top:5px">${paymentNote}</div>
       </div>`;
   }
-
   function normalizedParticipants(x){
     if(Array.isArray(x.participants) && x.participants.length) return x.participants;
     const n=Math.max(1,Number(x.split)||1);
@@ -401,15 +457,30 @@
     return x.repaidToMe;
   }
 
-  function amountOthersOweMe(x){
+  // Receivable exists ONLY when G. is one of the payers.
+  // Every participant who is neither G. nor another payer owes one equal share.
+  function peopleWhoOweMe(x){
     const participants=normalizedParticipants(x);
     const payers=normalizedPayers(x);
-    if(!payers.includes(ME)) return 0;
-    const share=shareTHB(x);
+    if(!payers.includes(ME)) return [];
+    return participants.filter(p=>p!==ME && !payers.includes(p));
+  }
+
+  function amountOthersOweMe(x){
+    const people=peopleWhoOweMe(x);
     const map=ensureRepaidToMeMap(x);
-    return participants
-      .filter(p=>p!==ME && !payers.includes(p))
-      .reduce((sum,p)=>sum + (map[p] ? 0 : share),0);
+    const share=shareTHB(x);
+    return people.reduce((sum,p)=>sum+(map[p]?0:share),0);
+  }
+
+  function receivableCounts(x){
+    const people=peopleWhoOweMe(x);
+    const map=ensureRepaidToMeMap(x);
+    return {
+      total:people.length,
+      unpaid:people.filter(p=>!map[p]).length,
+      paid:people.filter(p=>!!map[p]).length
+    };
   }
 
   function renderPie(net){
@@ -434,38 +505,101 @@
   function render(){
     const filter = $('filterCategory').value;
     const rows = filter ? state.expenses.filter(x=>x.category===filter) : state.expenses;
-    const net = state.expenses.reduce((s,x)=>s+x.myTHB,0);
-    const netCny = state.expenses.reduce((s,x)=>s+x.myCNY,0);
-    const group = state.expenses.reduce((s,x)=>s+x.totalTHB,0);
-    const due = state.expenses.filter(x=>!(Array.isArray(x.payers)?x.payers:[x.payer]).includes(ME)&&!x.repaid).reduce((s,x)=>s+x.myTHB,0);
+    const net = state.expenses.reduce((s,x)=>s+Number(x.myTHB||0),0);
+    const netCny = state.expenses.reduce((s,x)=>s+Number(x.myCNY||0),0);
+    const group = state.expenses.reduce((s,x)=>s+Number(x.totalTHB||0),0);
+
+    // "ต้องจ่ายคืน" = G. participated but G. was not a payer, and G. has not paid back yet.
+    const due = state.expenses
+      .filter(x=>normalizedParticipants(x).includes(ME) && !normalizedPayers(x).includes(ME) && !x.repaid)
+      .reduce((s,x)=>s+Number(x.myTHB||0),0);
+
+    // "รอจ่ายคืน" = G. is a payer and other split participants still owe G.
+    const receivable = state.expenses.reduce((s,x)=>s+amountOthersOweMe(x),0);
+
     $('netExpense').textContent=fmtTHB(net);
     $('netExpenseCny').textContent='≈ '+fmtCNY(netCny);
     $('groupSpend').textContent=fmtTHB(group);
     $('outstanding').textContent=fmtTHB(due);
+    if($('receivable')) $('receivable').textContent=fmtTHB(receivable);
 
-    $('expenseList').innerHTML = rows.length ? rows.map(x => `
-      <article class="expense">
-        <div class="expense-top">
-          <div style="min-width:0;flex:1">
-            <div class="expense-title">${esc(x.detail)}</div>
-            <div class="muted">${esc(x.category)} · ${x.date.split('-').reverse().join('/')}</div>
-            <div class="muted" style="margin-top:10px">Net Expense ของเรา</div>
-            <div class="expense-net">${fmtTHB(x.myTHB)}</div>
-            <div class="muted">ยอดทั้งหมด ${fmtTHB(x.totalTHB)} · หารกับ ${(x.participants&&x.participants.length?x.participants:PEOPLE.slice(0,x.split||1)).map(p=>PEOPLE_LABEL[p]||p).join(', ')}</div>
-            <div style="font-size:14px;margin-top:8px">จ่ายโดย ${esc((Array.isArray(x.payers)&&x.payers.length?x.payers:[x.payer]).map(p=>PEOPLE_LABEL[p]||p).join(", "))}</div>
-            <div class="muted">Payment Method: ${esc(x.payment || '-')}</div>
-            ${x.payer!==ME && x.myTHB>0 ? `<label class="repay"><input type="checkbox" data-repaid="${x.id}" ${x.repaid?'checked':''}><span>จ่ายคืนแล้ว</span></label><div class="status">Status: ${x.repaid?'จ่ายคืนแล้ว':'ยังต้องจ่ายคืน'}</div>` : `<div class="status">Status: ${x.myTHB<=0?'ไม่ได้ร่วมหาร':'เราจ่ายเอง'}</div>`}
+    $('expenseList').innerHTML = rows.length ? rows.map(x => {
+      const participants=normalizedParticipants(x);
+      const payers=normalizedPayers(x);
+      const payerLabels=payers.map(p=>PEOPLE_LABEL[p]||p).join(', ');
+      const share=shareTHB(x);
+      const owePeople=peopleWhoOweMe(x);
+      const repayMap=ensureRepaidToMeMap(x);
+      const counts=receivableCounts(x);
+      const owedNow=amountOthersOweMe(x);
+      const isCollapsed=collapsedReceivables.has(Number(x.id));
+
+      let settlementHtml='';
+      if(payers.includes(ME) && owePeople.length){
+        settlementHtml = `
+          <div class="receivable-box">
+            <div class="receivable-head">
+              <div>
+                <div class="receivable-title">รอจ่ายคืน ${fmtTHB(owedNow)}</div>
+                <div class="receivable-summary">ยังค้าง ${counts.unpaid} จาก ${counts.total} คน</div>
+              </div>
+              <button type="button" class="receivable-toggle" data-toggle-receivable="${x.id}">
+                ${isCollapsed?'Show':'Hide'}
+              </button>
+            </div>
+            ${isCollapsed ? '' : `
+              <div class="receivable-list">
+                ${owePeople.map(person=>`
+                  <label class="receivable-row">
+                    <input type="checkbox"
+                      data-repaid-to-me="${x.id}"
+                      data-person="${esc(person)}"
+                      ${repayMap[person]?'checked':''}>
+                    <span class="${repayMap[person]?'paid':''}">
+                      ${esc(PEOPLE_LABEL[person]||person)} ${repayMap[person]?'จ่ายคืนเราแล้ว':'ยังไม่จ่ายคืน'}
+                    </span>
+                    <span class="amount">${fmtTHB(share)}</span>
+                  </label>`).join('')}
+              </div>`}
+          </div>`;
+      }else if(!payers.includes(ME) && participants.includes(ME) && Number(x.myTHB||0)>0){
+        settlementHtml = `
+          <label class="repay">
+            <input type="checkbox" data-repaid="${x.id}" ${x.repaid?'checked':''}>
+            <span>จ่ายคืนแล้ว</span>
+          </label>
+          <div class="status">Status: ${x.repaid?'จ่ายคืนแล้ว':'ยังต้องจ่ายคืน'}</div>`;
+      }else{
+        settlementHtml = `<div class="status">Status: ${
+          !participants.includes(ME) ? 'ไม่ได้ร่วมหาร' :
+          payers.includes(ME) ? 'ไม่มีเงินค้างรับ' : 'เรียบร้อย'
+        }</div>`;
+      }
+
+      return `
+        <article class="expense">
+          <div class="expense-top">
+            <div style="min-width:0;flex:1">
+              <div class="expense-title">${esc(x.detail)}</div>
+              <div class="muted">${esc(x.category)} · ${x.date.split('-').reverse().join('/')}</div>
+              <div class="muted" style="margin-top:10px">Net Expense ของเรา</div>
+              <div class="expense-net">${fmtTHB(x.myTHB)}</div>
+              <div class="muted">ยอดทั้งหมด ${fmtTHB(x.totalTHB)} · หารกับ ${participants.map(p=>PEOPLE_LABEL[p]||p).join(', ')}</div>
+              <div style="font-size:14px;margin-top:8px">จ่ายโดย ${esc(payerLabels)}</div>
+              <div class="muted">Payment Method: ${esc(x.payment || '-')}</div>
+              ${settlementHtml}
+            </div>
+            <div class="actions">
+              <button class="btn btn-small" type="button" data-edit="${x.id}">Edit</button>
+              <button class="btn btn-small btn-danger" type="button" data-del="${x.id}">ลบ</button>
+            </div>
           </div>
-          <div class="actions">
-            <button class="btn btn-small" type="button" data-edit="${x.id}">Edit</button>
-            <button class="btn btn-small btn-danger" type="button" data-del="${x.id}">ลบ</button>
-          </div>
-        </div>
-      </article>`).join('') : '<div class="muted" style="text-align:center;padding:24px 0">ยังไม่มีรายจ่าย</div>';
+        </article>`;
+    }).join('') : '<div class="muted" style="text-align:center;padding:24px 0">ยังไม่มีรายจ่าย</div>';
+
     renderPie(net);
     persist();
   }
-
   function resetForm(){
     state.editingId=null;
     $('formTitle').textContent='เพิ่มรายจ่าย';
@@ -474,6 +608,7 @@
     $('detail').value='';
     $('amount').value='';
     setParticipants(['Gift']);
+    setPayers(['Gift']);
     $('date').value=todayLocalISO();
     preview();
   }
@@ -483,7 +618,7 @@
     const x=calc(), existing=state.expenses.find(v=>v.id===state.editingId);
     const rec={
       id:state.editingId||Date.now(),date:$('date').value,detail:$('detail').value.trim(),
-      category:$('category').value,currency:x.currency,amount:x.amount,fx:x.fx,split:x.split,participants:x.participants,participants:x.participants,
+      category:$('category').value,currency:x.currency,amount:x.amount,fx:x.fx,split:x.split,participants:x.participants,
       payers:selectedPayers(),payer:selectedPayers()[0]||'',payment:$('paymentMethod').value,totalTHB:x.totalTHB,totalCNY:x.totalCNY,
       myTHB:x.myTHB,myCNY:x.myCNY,repaid:selectedPayers().includes(ME)?true:(existing?existing.repaid:false),repaidToMe:existing&&existing.repaidToMe?existing.repaidToMe:{},
       updatedAt:new Date().toISOString()
@@ -520,40 +655,110 @@
   $('payerMenu').addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"]')){updatePayerSummary();preview();}});
   document.addEventListener('click',e=>{if(!e.target.closest('.multi-select-wrap'))closeMulti();});
 
+
+  $('cancelDelete').addEventListener('click',()=>{
+    deletePendingId=null;
+    $('deleteDialog').classList.add('hidden');
+  });
+
+  $('confirmDelete').addEventListener('click',()=>{
+    if(deletePendingId!==null){
+      state.expenses=state.expenses.filter(v=>v.id!==deletePendingId);
+      deletePendingId=null;
+      $('deleteDialog').classList.add('hidden');
+      render();
+    }
+  });
+
+  $('deleteDialog').addEventListener('click',e=>{
+    if(e.target===$('deleteDialog')){
+      deletePendingId=null;
+      $('deleteDialog').classList.add('hidden');
+    }
+  });
+
   $('filterCategory').addEventListener('change',render);
   $('cancelEdit').addEventListener('click',resetForm);
 
   $('expenseList').addEventListener('change',e=>{
-    const paidBackToFriend=e.target.closest('[data-repaid]');
-    if(paidBackToFriend){
-      const x=state.expenses.find(v=>v.id===Number(paidBackToFriend.dataset.repaid));
-      if(x){x.repaid=paidBackToFriend.checked;x.updatedAt=new Date().toISOString();render();}
+    const payBack=e.target.closest('[data-repaid]');
+    if(payBack){
+      const x=state.expenses.find(v=>v.id===Number(payBack.dataset.repaid));
+      if(x){
+        x.repaid=payBack.checked;
+        x.updatedAt=new Date().toISOString();
+        render();
+      }
       return;
     }
 
-    const repaidToMe=e.target.closest('[data-repaid-to-me]');
-    if(repaidToMe){
-      const x=state.expenses.find(v=>v.id===Number(repaidToMe.dataset.repaidToMe));
+    const paidToMe=e.target.closest('[data-repaid-to-me]');
+    if(paidToMe){
+      const x=state.expenses.find(v=>v.id===Number(paidToMe.dataset.repaidToMe));
       if(x){
-        const person=repaidToMe.dataset.person;
-        ensureRepaidToMeMap(x)[person]=repaidToMe.checked;
+        const person=paidToMe.dataset.person;
+        ensureRepaidToMeMap(x)[person]=paidToMe.checked;
         x.updatedAt=new Date().toISOString();
         render();
       }
     }
   });
   $('expenseList').addEventListener('click',e=>{
-    const eb=e.target.closest('[data-edit]'), db=e.target.closest('[data-del]');
-    if(eb){
-      const x=state.expenses.find(v=>v.id===Number(eb.dataset.edit)); if(!x)return;
-      state.editingId=x.id; $('formTitle').textContent='แก้ไขรายจ่าย'; $('submitBtn').textContent='บันทึกการแก้ไข'; $('cancelEdit').classList.remove('hidden');
-      $('date').value=x.date; renderCategories(x.category); $('detail').value=x.detail; $('currency').value=x.currency;
-      $('amount').value=x.amount; $('fx').value=x.fx; setParticipants(Array.isArray(x.participants)&&x.participants.length?x.participants:PEOPLE.slice(0,Math.max(1,x.split||1))); setPayers(Array.isArray(x.payers)&&x.payers.length?x.payers:[x.payer||'Gift']); renderPayments(x.payment); preview();
-      window.scrollTo({top:$('formTitle').getBoundingClientRect().top + window.scrollY - 20,behavior:'smooth'});
+    const toggle=e.target.closest('[data-toggle-receivable]');
+    if(toggle){
+      const id=Number(toggle.dataset.toggleReceivable);
+      if(collapsedReceivables.has(id)) collapsedReceivables.delete(id);
+      else collapsedReceivables.add(id);
+      render();
+      return;
     }
-    if(db){ state.expenses=state.expenses.filter(v=>v.id!==Number(db.dataset.del)); render(); }
-  });
 
+    const editBtn=e.target.closest('[data-edit]');
+    if(editBtn){
+      const x=state.expenses.find(v=>v.id===Number(editBtn.dataset.edit));
+      if(!x) return;
+
+      state.editingId=x.id;
+      $('formTitle').textContent='แก้ไขรายจ่าย';
+      $('submitBtn').textContent='บันทึกการแก้ไข';
+      $('cancelEdit').classList.remove('hidden');
+
+      $('date').value=x.date;
+      renderCategories(x.category);
+      $('detail').value=x.detail;
+      $('currency').value=x.currency;
+      $('amount').value=x.amount;
+      $('fx').value=x.fx;
+
+      setParticipants(
+        Array.isArray(x.participants) && x.participants.length
+          ? x.participants
+          : PEOPLE.slice(0,Math.max(1,Number(x.split)||1))
+      );
+      setPayers(
+        Array.isArray(x.payers) && x.payers.length
+          ? x.payers
+          : [x.payer || 'Gift']
+      );
+
+      renderPayments(x.payment);
+      preview();
+
+      const formTop=$('formTitle').getBoundingClientRect().top + window.scrollY - 20;
+      window.scrollTo({top:formTop,behavior:'smooth'});
+      return;
+    }
+
+    const deleteBtn=e.target.closest('[data-del]');
+    if(deleteBtn){
+      const x=state.expenses.find(v=>v.id===Number(deleteBtn.dataset.del));
+      if(!x) return;
+      deletePendingId=x.id;
+      $('deleteDialogText').textContent=`ต้องการลบ “${x.detail}” หรือไม่?`;
+      $('deleteDialog').classList.remove('hidden');
+      return;
+    }
+  });
   $('showAddCategory').addEventListener('click',()=>$('categoryManager').classList.toggle('hidden'));
   $('closeCategoryManager').addEventListener('click',()=>$('categoryManager').classList.add('hidden'));
   $('saveCategory').addEventListener('click',()=>{

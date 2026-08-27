@@ -117,7 +117,7 @@
         <div class="field"><label for="splitCount">หารกี่คน <span class="muted">· รวมเราด้วย</span></label><select id="splitCount"><option selected>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
       </div>
 
-      <div class="field"><label for="date">วันจ่าย</label><input id="date" type="date"></div>
+      <div class="field"><label for="date">วันจ่าย</label><input id="date" type="date" min="2026-11-22" max="2026-11-28" value="2026-11-22"></div>
       <div class="field"><label for="payer">จ่ายโดยใคร</label><select id="payer"><option>Gift</option><option>Pupple</option><option>Nutty</option><option>KT</option><option>Snook</option></select></div>
 
       <div class="field">
@@ -186,13 +186,6 @@
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const fmtTHB = n => '฿' + Number(n || 0).toLocaleString('th-TH',{maximumFractionDigits:2});
   const fmtCNY = n => '¥' + Number(n || 0).toLocaleString('zh-CN',{maximumFractionDigits:2});
-  function todayLocalISO(){
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${day}`;
-  }
 
   function load(){
     try{
@@ -317,7 +310,6 @@
     $('detail').value='';
     $('amount').value='';
     $('splitCount').value='1';
-    $('date').value=todayLocalISO();
     preview();
   }
 
@@ -413,7 +405,7 @@
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='beijing-expenses.json';a.click();URL.revokeObjectURL(a.href);
   });
 
-  load(); renderCategories(); renderPayments(); $('date').value=todayLocalISO(); preview(); render();
+  load(); renderCategories(); renderPayments(); preview(); render();
 
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));

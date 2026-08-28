@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: dynamic-currency-v20 -->
+  <!-- app-version: editable-expense-title-v24 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -300,6 +300,176 @@
       padding:0 !important;
     }
 
+
+    /* v21: make settlement boxes visually identical in size/alignment */
+    .receivable-box,
+    .repay{
+      width:100%;
+      min-height:86px;
+      box-sizing:border-box;
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:14px 16px;
+      margin-top:14px;
+      display:flex;
+      align-items:center;
+    }
+
+    .receivable-box{
+      justify-content:space-between;
+      gap:14px;
+    }
+
+    .repay{
+      justify-content:flex-start;
+      gap:14px;
+    }
+
+    .receivable-box > div:first-child{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      gap:4px;
+    }
+
+    .receivable-box .btn,
+    .repay input[type="checkbox"]{
+      flex:0 0 auto;
+    }
+
+    .receivable-box .btn{
+      min-width:84px;
+      min-height:52px;
+      align-self:center;
+    }
+
+    .repay input[type="checkbox"]{
+      width:38px;
+      height:38px;
+      margin:0;
+    }
+
+    .repay span{
+      display:flex;
+      align-items:center;
+      min-height:38px;
+      font-weight:650;
+    }
+
+    @media (max-width:480px){
+      .receivable-box,
+      .repay{
+        min-height:82px;
+        padding:12px 14px;
+      }
+      .receivable-box .btn{
+        min-width:78px;
+        min-height:48px;
+      }
+      .repay input[type="checkbox"]{
+        width:36px;
+        height:36px;
+      }
+    }
+
+
+    /* v22: minimal bottom Settings */
+    .settings-launch-wrap{
+      display:flex;
+      justify-content:center;
+      padding:2px 0 6px;
+    }
+
+    .settings-launch{
+      min-height:40px;
+      border:0;
+      background:transparent;
+      color:var(--muted);
+      font-size:13px;
+      font-weight:650;
+      padding:8px 14px;
+      border-radius:10px;
+    }
+
+    .settings-launch:active{
+      background:var(--accent-soft);
+      color:var(--accent);
+    }
+
+    .settings-panel{
+      margin-top:10px;
+    }
+
+    .settings-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+
+    .settings-close{
+      min-height:34px;
+      border:0;
+      background:transparent;
+      color:var(--accent);
+      font-size:13px;
+      font-weight:700;
+      padding:4px 6px;
+    }
+
+    .settings-subset{
+      border-top:1px solid var(--border);
+      padding-top:4px;
+    }
+
+    .settings-subset summary{
+      cursor:pointer;
+      list-style:none;
+      min-height:48px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      font-size:15px;
+      font-weight:700;
+      padding:6px 0;
+    }
+
+    .settings-subset summary::-webkit-details-marker{display:none}
+
+    .settings-subset summary::after{
+      content:'›';
+      color:var(--muted);
+      font-size:22px;
+      line-height:1;
+      transform:rotate(90deg);
+      transition:transform .15s ease;
+    }
+
+    .settings-subset[open] summary::after{
+      transform:rotate(-90deg);
+    }
+
+    .settings-subset-body{
+      padding-top:6px;
+    }
+
+    .settings-subset-body > .card{
+      border:0;
+      padding:0;
+      margin:0;
+      background:transparent;
+    }
+
+
+    /* v23: editable trip/expense heading under Settings */
+    #tripInfoStatus{
+      min-height:18px;
+      color:var(--muted);
+      font-size:12px;
+    }
+
 </style>
 </head>
 <body>
@@ -328,7 +498,7 @@
 
   <section class="card">
     <div class="section-head">
-      <div><h2 id="formTitle">เพิ่มรายจ่าย</h2><div class="muted">Beijing · 22–28 Nov 2026</div></div>
+      <div><h2 id="formTitle">เพิ่มรายจ่าย</h2><div id="tripSubtitle" class="muted">Beijing · 22–28 Nov 2026</div></div>
       <button id="cancelEdit" class="btn btn-small hidden" type="button">ยกเลิก</button>
     </div>
 
@@ -482,19 +652,7 @@
     <div id="expenseList"></div>
   </section>
 
-  <section class="card">
-    <h2>Excel Online Sync</h2>
-    <div class="muted">Optional · ใช้ Power Automate / Microsoft Graph เป็นตัวกลาง</div>
-    <div class="field" style="margin-top:12px">
-      <label for="syncUrl">Power Automate HTTP URL</label>
-      <input id="syncUrl" type="url" placeholder="วาง URL ของ Flow ที่รับข้อมูล">
-    </div>
-    <div class="toolbar">
-      <button id="syncNow" class="btn" type="button">Sync ตอนนี้</button>
-      <button id="exportJson" class="btn" type="button">Export JSON</button>
-    </div>
-    <div id="syncStatus" class="sync-note">ข้อมูลจะถูกเก็บในเครื่องนี้อัตโนมัติก่อนเสมอ แม้ยังไม่ได้เชื่อม Excel Online</div>
-  </section>
+  
 
   <div id="deleteDialog" class="confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle">
     <div class="confirm-dialog">
@@ -527,6 +685,52 @@
     </div>
   </div>
 
+
+  <section class="settings-launch-wrap">
+    <button id="openSettings" type="button" class="settings-launch">Settings</button>
+  </section>
+
+  <section id="settingsPanel" class="card settings-panel hidden">
+    <div class="settings-head">
+      <div>
+        <h2>Settings</h2>
+        <div class="muted">ตั้งค่าการใช้งานเพิ่มเติม</div>
+      </div>
+      <button id="closeSettings" type="button" class="settings-close" aria-label="Close settings">Done</button>
+    </div>
+
+    <details class="settings-subset">
+      <summary>Expense / Trip Info</summary>
+      <div class="settings-subset-body">
+        <div class="field">
+          <label for="tripNameSetting">Expense / Trip Name</label>
+          <input id="tripNameSetting" type="text" placeholder="เช่น Beijing Trip during 22-28 Nov 26">
+        </div>
+        <button id="saveTripInfo" class="btn" type="button" style="width:100%">Save</button>
+        <div id="tripInfoStatus" class="sync-note" style="margin-top:8px"></div>
+      </div>
+    </details>
+
+    <details class="settings-subset">
+      <summary>Online Sync</summary>
+      <div class="settings-subset-body">
+        <section class="card">
+    <h2>Excel Online Sync</h2>
+    <div class="muted">Optional · ใช้ Power Automate / Microsoft Graph เป็นตัวกลาง</div>
+    <div class="field" style="margin-top:12px">
+      <label for="syncUrl">Power Automate HTTP URL</label>
+      <input id="syncUrl" type="url" placeholder="วาง URL ของ Flow ที่รับข้อมูล">
+    </div>
+    <div class="toolbar">
+      <button id="syncNow" class="btn" type="button">Sync ตอนนี้</button>
+      <button id="exportJson" class="btn" type="button">Export JSON</button>
+    </div>
+    <div id="syncStatus" class="sync-note">ข้อมูลจะถูกเก็บในเครื่องนี้อัตโนมัติก่อนเสมอ แม้ยังไม่ได้เชื่อม Excel Online</div>
+  </section>
+      </div>
+    </details>
+  </section>
+
 </main>
 
 <script>
@@ -545,6 +749,7 @@
     editingId: null,
     categories: ['อาหาร','คาเฟ่ / เครื่องดื่ม','เดินทาง','โรงแรม','ตั๋ว / สถานที่เที่ยว','Shopping','SIM / Internet','ของฝาก','อื่น ๆ'],
     payments: ['Cash','Boarding Card','Credit Card'],
+    tripName: 'Beijing · 22–28 Nov 2026',
     currencies: [
       {code:'THB',symbol:'฿',active:true,locked:true},
       {code:'CNY',symbol:'¥',active:true},
@@ -855,6 +1060,10 @@
         }else if(activePeopleIds().length){
           ME=activePeopleIds()[0];
         }
+        if(typeof settings.tripName==='string' && settings.tripName.trim()) state.tripName=settings.tripName.trim();
+        if(typeof settings.tripDateLabel==='string' && settings.tripDateLabel.trim() && !state.tripName.includes(settings.tripDateLabel.trim())){
+          state.tripName = [state.tripName, settings.tripDateLabel.trim()].filter(Boolean).join(' · ');
+        }
         if(Array.isArray(settings.categories) && settings.categories.length) state.categories = settings.categories;
         if(Array.isArray(settings.payments) && settings.payments.length) state.payments = settings.payments;
         if(Array.isArray(settings.currencies) && settings.currencies.length){
@@ -877,8 +1086,14 @@
   function persist(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify({expenses:state.expenses}));
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      categories:state.categories,payments:state.payments,currencies:state.currencies,people,ownerId:ME,syncUrl:$('syncUrl').value.trim()
+      tripName:state.tripName,categories:state.categories,payments:state.payments,currencies:state.currencies,people,ownerId:ME,syncUrl:$('syncUrl').value.trim()
     }));
+  }
+
+  function renderTripInfo(){
+    const name=(state.tripName||'').trim();
+    $('tripSubtitle').textContent = name;
+    $('tripNameSetting').value = name;
   }
 
   function renderCategories(selected){
@@ -1410,6 +1625,37 @@
     fetchFxForDate({force:true});
   });
 
+
+  $('saveTripInfo').addEventListener('click',()=>{
+    const name=$('tripNameSetting').value.trim();
+
+    if(!name){
+      $('tripInfoStatus').textContent='กรุณาใส่ชื่อ Expense / Trip';
+      return;
+    }
+
+    state.tripName=name;
+    renderTripInfo();
+    persist();
+
+    $('tripInfoStatus').textContent='Saved';
+    setTimeout(()=>{
+      if($('tripInfoStatus')) $('tripInfoStatus').textContent='';
+    },1400);
+  });
+
+  $('openSettings').addEventListener('click',()=>{
+    $('settingsPanel').classList.remove('hidden');
+    $('openSettings').closest('.settings-launch-wrap').classList.add('hidden');
+    $('settingsPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  });
+
+  $('closeSettings').addEventListener('click',()=>{
+    $('settingsPanel').classList.add('hidden');
+    $('openSettings').closest('.settings-launch-wrap').classList.remove('hidden');
+    $('openSettings').scrollIntoView({behavior:'smooth',block:'center'});
+  });
+
   $('filterCategory').addEventListener('change',render);
   $('cancelEdit').addEventListener('click',resetForm);
 
@@ -1547,7 +1793,7 @@
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='beijing-expenses.json';a.click();URL.revokeObjectURL(a.href);
   });
 
-  load(); renderCategories(); renderPayments(); renderCurrencies('CNY'); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); fetchFxForDate({force:true});
+  load(); renderTripInfo(); renderCategories(); renderPayments(); renderCurrencies('CNY'); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); fetchFxForDate({force:true});
 
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));

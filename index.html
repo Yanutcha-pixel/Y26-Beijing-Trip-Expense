@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: calculator-layout-v29 -->
+  <!-- app-version: stability-fix-v30 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -499,27 +499,23 @@
     .calc-icon-btn svg{width:21px;height:21px;stroke:currentColor}
 
     .calc-modal{
-      position:fixed;inset:0;z-index:9999;
-      background:#f4f4f5;
+      position:fixed;inset:0;z-index:9999;background:#f4f4f5;
       display:flex;justify-content:center;
     }
     .calc-modal.hidden{display:none}
     .calc-sheet{
-      width:100%;max-width:560px;min-height:100%;
-      box-sizing:border-box;display:flex;flex-direction:column;
+      width:100%;max-width:560px;min-height:100%;box-sizing:border-box;
+      display:flex;flex-direction:column;
       padding:calc(env(safe-area-inset-top,0px) + 16px) 18px calc(env(safe-area-inset-bottom,0px) + 18px);
     }
     .calc-topbar{
-      display:grid;grid-template-columns:1fr auto 1fr;
-      align-items:center;gap:12px;
+      display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
     }
     .calc-topbar-title{font-size:20px;font-weight:700;text-align:center}
-    .calc-topbar-left{text-align:left}
-    .calc-topbar-right{text-align:right}
+    .calc-topbar-left{text-align:left}.calc-topbar-right{text-align:right}
     .calc-pill{
       border:0;background:#fff;border-radius:999px;padding:10px 16px;
-      font:inherit;font-size:16px;cursor:pointer;
-      box-shadow:0 8px 22px rgba(0,0,0,.06);
+      font:inherit;font-size:16px;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.06);
     }
     .calc-screen{
       min-height:230px;display:flex;align-items:flex-end;justify-content:flex-end;
@@ -530,14 +526,12 @@
       font-weight:500;text-align:right;color:#111;outline:none;padding:0;margin:0;
     }
     .calc-grid{
-      display:grid;grid-template-columns:repeat(4,1fr);
-      gap:8px;background:transparent;border-radius:18px;
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;
     }
     .calc-key{
-      border:1px solid var(--border);background:#fff;aspect-ratio:1/1;
-      border-radius:50%;font-size:28px;cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
-      min-height:0;
+      border:1px solid var(--border);background:#fff;aspect-ratio:1/1;border-radius:50%;
+      font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+      min-width:0;
     }
     .calc-key:active{background:#efeff1}
     .calc-key.op{font-weight:700}
@@ -545,7 +539,7 @@
       .calc-sheet{padding-left:14px;padding-right:14px}
       .calc-screen{min-height:205px}
       .calc-display{font-size:58px}
-      .calc-key{font-size:26px}
+      .calc-key{font-size:25px}
     }
 
     .currency-standalone{margin-top:0}
@@ -860,6 +854,47 @@
   </section>
 
 </main>
+
+  <div id="calcModal" class="calc-modal hidden" role="dialog" aria-modal="true" aria-labelledby="calcTitle">
+    <div class="calc-sheet">
+      <div class="calc-topbar">
+        <div class="calc-topbar-left"><button id="calcCancel" class="calc-pill" type="button">Cancel</button></div>
+        <div id="calcTitle" class="calc-topbar-title">Calculator</div>
+        <div class="calc-topbar-right"><button id="calcDone" class="calc-pill" type="button">Done</button></div>
+      </div>
+
+      <div class="calc-screen">
+        <input id="calcDisplay" class="calc-display" type="text" value="0" readonly>
+      </div>
+
+      <div class="calc-grid">
+        <button class="calc-key" type="button" data-calc="back">⌫</button>
+        <button class="calc-key" type="button" data-calc="clear">AC</button>
+        <button class="calc-key" type="button" data-calc="percent">%</button>
+        <button class="calc-key op" type="button" data-calc="/">÷</button>
+
+        <button class="calc-key" type="button" data-calc="7">7</button>
+        <button class="calc-key" type="button" data-calc="8">8</button>
+        <button class="calc-key" type="button" data-calc="9">9</button>
+        <button class="calc-key op" type="button" data-calc="*">×</button>
+
+        <button class="calc-key" type="button" data-calc="4">4</button>
+        <button class="calc-key" type="button" data-calc="5">5</button>
+        <button class="calc-key" type="button" data-calc="6">6</button>
+        <button class="calc-key op" type="button" data-calc="-">−</button>
+
+        <button class="calc-key" type="button" data-calc="1">1</button>
+        <button class="calc-key" type="button" data-calc="2">2</button>
+        <button class="calc-key" type="button" data-calc="3">3</button>
+        <button class="calc-key op" type="button" data-calc="+">+</button>
+
+        <button class="calc-key" type="button" data-calc="sign">+/−</button>
+        <button class="calc-key" type="button" data-calc="0">0</button>
+        <button class="calc-key" type="button" data-calc=".">.</button>
+        <button class="calc-key op" type="button" data-calc="=">=</button>
+      </div>
+    </div>
+  </div>
 
 <script>
 (() => {
@@ -2169,21 +2204,12 @@
     document.body.style.overflow='';
   }
 
-  function applyPercent(){
-    if(!calcExpr) return;
+  function replaceLastNumber(transform){
     const m=calcExpr.match(/(-?\d*\.?\d+)$/);
     if(!m) return;
     const raw=m[1];
-    calcExpr=calcExpr.slice(0,-raw.length)+String(Number(raw)/100);
-  }
-
-  function toggleSign(){
-    if(!calcExpr) return;
-    const m=calcExpr.match(/(-?\d*\.?\d+)$/);
-    if(!m) return;
-    const raw=m[1];
-    const signed=raw.startsWith('-') ? raw.slice(1) : '-'+raw;
-    calcExpr=calcExpr.slice(0,-raw.length)+signed;
+    const next=transform(raw);
+    calcExpr=calcExpr.slice(0,-raw.length)+next;
   }
 
   $('openCalculator').addEventListener('click',()=>{
@@ -2199,19 +2225,18 @@
     if(!btn) return;
     const key=btn.dataset.calc;
 
-    if(key==='AC'){
+    if(key==='clear'){
       calcExpr='';
-    }else if(key==='⌫'){
+    }else if(key==='back'){
       calcExpr=calcExpr.slice(0,-1);
-    }else if(key==='%'){
-      applyPercent();
-    }else if(key==='+/-'){
-      toggleSign();
+    }else if(key==='percent'){
+      replaceLastNumber(raw=>String(Number(raw)/100));
+    }else if(key==='sign'){
+      replaceLastNumber(raw=>raw.startsWith('-') ? raw.slice(1) : '-'+raw);
     }else if(key==='='){
       try{
         calcExpr=String(safeCalc(calcExpr));
       }catch(_){
-        calcExpr='';
         $('calcDisplay').value='Error';
         return;
       }
@@ -2245,50 +2270,7 @@
 })();
 </script>
 
-  <div id="calcModal" class="calc-modal hidden" role="dialog" aria-modal="true" aria-labelledby="calcTitle">
-    <div class="calc-sheet">
-      <div class="calc-topbar">
-        <div class="calc-topbar-left">
-          <button id="calcCancel" class="calc-pill" type="button">Cancel</button>
-        </div>
-        <div id="calcTitle" class="calc-topbar-title">Calculator</div>
-        <div class="calc-topbar-right">
-          <button id="calcDone" class="calc-pill" type="button">Done</button>
-        </div>
-      </div>
 
-      <div class="calc-screen">
-        <input id="calcDisplay" class="calc-display" type="text" value="0" readonly>
-      </div>
-
-      <div class="calc-grid">
-        <button class="calc-key" type="button" data-calc="⌫">⌫</button>
-        <button class="calc-key" type="button" data-calc="AC">AC</button>
-        <button class="calc-key" type="button" data-calc="%">%</button>
-        <button class="calc-key op" type="button" data-calc="/">÷</button>
-
-        <button class="calc-key" type="button" data-calc="7">7</button>
-        <button class="calc-key" type="button" data-calc="8">8</button>
-        <button class="calc-key" type="button" data-calc="9">9</button>
-        <button class="calc-key op" type="button" data-calc="*">×</button>
-
-        <button class="calc-key" type="button" data-calc="4">4</button>
-        <button class="calc-key" type="button" data-calc="5">5</button>
-        <button class="calc-key" type="button" data-calc="6">6</button>
-        <button class="calc-key op" type="button" data-calc="-">−</button>
-
-        <button class="calc-key" type="button" data-calc="1">1</button>
-        <button class="calc-key" type="button" data-calc="2">2</button>
-        <button class="calc-key" type="button" data-calc="3">3</button>
-        <button class="calc-key op" type="button" data-calc="+">+</button>
-
-        <button class="calc-key" type="button" data-calc="+/-">+/−</button>
-        <button class="calc-key" type="button" data-calc="0">0</button>
-        <button class="calc-key" type="button" data-calc=".">.</button>
-        <button class="calc-key op" type="button" data-calc="=">=</button>
-      </div>
-    </div>
-  </div>
 
 </body>
 </html>

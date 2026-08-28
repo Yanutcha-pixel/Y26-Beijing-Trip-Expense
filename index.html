@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: dynamic-people-v11 -->
+  <!-- app-version: date-ios-native-fix-v19 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -121,15 +121,184 @@
 
     .fx-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px}
     .fx-refresh{min-height:34px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:0 10px;font-size:12px;font-weight:650;white-space:nowrap}
-
-
-    .people-manage-row{display:flex;justify-content:flex-end;margin-top:-4px;margin-bottom:14px}
+    .user-badge{display:inline-flex;align-items:center;margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:700;vertical-align:middle}
     .people-dialog{width:min(94vw,520px)}
-    .people-list{display:grid;gap:8px;margin-top:14px}
+    .manager-owner-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;margin-top:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+    .manager-owner-row label{font-size:12px;color:var(--muted);font-weight:700}
+    .manager-owner-row select{min-height:40px}
+    .people-list{display:grid;gap:8px;margin-top:12px}
     .people-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center}
     .people-item input{min-height:42px}
     .people-item button{min-height:42px;padding:0 10px}
     .people-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+
+
+    .multi-select-menu{box-shadow:0 10px 28px rgba(17,24,39,.10);border-color:#e7e9ed}
+    .multi-select-option{min-height:44px;padding:8px 12px;border-radius:10px}
+    .multi-select-option:hover{background:#f7f8fa}
+    .multi-select-option input{width:20px;height:20px}
+
+
+    .minimal-select-wrap{display:block}
+    .minimal-select-wrap select{width:100%}
+    .mini-manage-row{display:flex;justify-content:flex-end;margin-top:4px;margin-bottom:8px}
+    .mini-manage{
+      min-height:26px;border:0;background:transparent;padding:2px 3px;
+      color:var(--muted);font-size:11px;font-weight:650;letter-spacing:.01em
+    }
+    .mini-manage:active{opacity:.55}
+
+
+    .panel{margin-top:8px;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fafafa}
+    .panel.hidden{display:none}
+    .manager-row{min-height:38px}
+
+
+    /* v15: consistent minimal Manage controls */
+    .minimal-select-wrap{display:block}
+    .minimal-select-wrap select{width:100%;margin:0}
+
+    .mini-manage-row{
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      margin:2px 2px 10px 0;
+      min-height:30px;
+    }
+
+    .mini-manage{
+      min-height:30px;
+      min-width:54px;
+      border:0;
+      background:transparent;
+      padding:5px 4px;
+      margin:0;
+      color:var(--muted);
+      font-size:11px;
+      line-height:1;
+      font-weight:650;
+      letter-spacing:.01em;
+      border-radius:8px;
+      touch-action:manipulation;
+    }
+
+    .mini-manage:active{
+      background:var(--accent-soft);
+      color:var(--accent);
+      opacity:1;
+    }
+
+    /* keep the People/User Manage visually aligned with other fields */
+    .field + .mini-manage-row,
+    .multi-select-wrap + .mini-manage-row,
+    .minimal-select-wrap + .mini-manage-row{
+      margin-top:2px;
+    }
+
+    /* reduce empty air before next field */
+    .mini-manage-row + .field{
+      margin-top:0;
+    }
+
+    /* compact manager panels when expanded */
+    .panel{
+      margin-top:4px;
+    }
+
+    @media (max-width:480px){
+      .mini-manage{
+        min-height:32px;
+        min-width:58px;
+        padding:6px 5px;
+      }
+      .mini-manage-row{
+        margin-bottom:8px;
+      }
+    }
+
+
+    .people-manage-compact{margin-top:2px;margin-bottom:8px}
+
+    /* v16: identical Manage spacing everywhere */
+    .mini-manage-row,
+    .people-manage-compact,
+    .field + .mini-manage-row,
+    .multi-select-wrap + .mini-manage-row,
+    .minimal-select-wrap + .mini-manage-row{
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      min-height:30px;
+      margin:2px 2px 8px 0 !important;
+      padding:0 !important;
+    }
+
+    .mini-manage-row .mini-manage,
+    .people-manage-compact .mini-manage{
+      min-height:30px;
+      min-width:54px;
+      margin:0 !important;
+      padding:5px 4px !important;
+    }
+
+
+    /* v17: prevent iOS Safari date field from overflowing its container */
+    input[type="date"]{
+      display:block;
+      width:100% !important;
+      max-width:100% !important;
+      min-width:0 !important;
+      box-sizing:border-box !important;
+      margin-left:0 !important;
+      margin-right:0 !important;
+    }
+
+    .field input[type="date"]{
+      inline-size:100% !important;
+      max-inline-size:100% !important;
+    }
+
+
+    /* v19: hard-fix iOS/WebKit native date control overflow */
+    .field:has(> input[type="date"]){
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      overflow:hidden;
+    }
+
+    input[type="date"]{
+      -webkit-appearance:none !important;
+      appearance:none !important;
+      display:block !important;
+      width:100% !important;
+      max-width:100% !important;
+      min-width:0 !important;
+      inline-size:100% !important;
+      max-inline-size:100% !important;
+      box-sizing:border-box !important;
+      margin:0 !important;
+      padding-left:14px !important;
+      padding-right:14px !important;
+      overflow:hidden !important;
+      background:#fff !important;
+    }
+
+    input[type="date"]::-webkit-date-and-time-value{
+      min-width:0 !important;
+      width:100% !important;
+      text-align:center;
+    }
+
+    input[type="date"]::-webkit-datetime-edit{
+      min-width:0 !important;
+      padding:0 !important;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator{
+      margin:0 !important;
+      padding:0 !important;
+    }
 
 </style>
 </head>
@@ -171,7 +340,7 @@
 
       <div class="field">
         <label for="category">ประเภท</label>
-        <div class="inline"><select id="category">
+        <div class="minimal-select-wrap"><select id="category">
       <option>อาหาร</option>
       <option>คาเฟ่ / เครื่องดื่ม</option>
       <option>เดินทาง</option>
@@ -181,7 +350,8 @@
       <option>SIM / Internet</option>
       <option>ของฝาก</option>
       <option>อื่น ๆ</option>
-    </select><button id="showAddCategory" class="btn" type="button">＋</button></div>
+    </select></div>
+        <div class="mini-manage-row"><button id="showAddCategory" class="mini-manage" type="button">Manage</button></div>
         <div id="categoryManager" class="panel hidden">
           <div class="inline"><input id="newCategory" placeholder="ชื่อประเภทใหม่"><button id="saveCategory" class="btn" type="button">Add</button></div>
           <div id="categoryList"></div>
@@ -203,7 +373,9 @@
             <button id="refreshFx" type="button" class="fx-refresh">Auto FX</button>
           </div>
         </div>
-        <div class="row2 split-payer-row">
+      </div>
+
+      <div class="row2 split-payer-row">
   <div class="field">
     <label>ใครหารบ้าง</label>
     <div class="multi-select-wrap">
@@ -238,18 +410,20 @@
   </div>
 </div>
 
-      <div class="people-manage-row">
-        <button id="managePeople" type="button" class="btn btn-small">Manage People</button>
+      <div class="mini-manage-row people-manage-compact">
+        <button id="managePeople" type="button" class="mini-manage" aria-label="Manage people">Manage</button>
       </div>
+      <select id="ownerSelect" class="hidden" aria-hidden="true" tabindex="-1"></select>
 
       <div class="field"><label for="date">วันจ่าย</label><input id="date" type="date"></div>
       <div class="field">
         <label for="paymentMethod">Payment Method</label>
-        <div class="inline"><select id="paymentMethod">
+        <div class="minimal-select-wrap"><select id="paymentMethod">
       <option>Cash</option>
       <option>Boarding Card</option>
       <option>Credit Card</option>
-    </select><button id="managePayment" class="btn" type="button">Manage</button></div>
+    </select></div>
+        <div class="mini-manage-row"><button id="managePayment" class="mini-manage" type="button">Manage</button></div>
         <div id="paymentManager" class="panel hidden">
           <div class="inline"><input id="newPayment" placeholder="เพิ่มวิธีจ่ายใหม่"><button id="savePayment" class="btn" type="button">Add</button></div>
           <div id="paymentList"></div>
@@ -319,6 +493,10 @@
     <div class="confirm-dialog people-dialog">
       <div id="peopleDialogTitle" class="confirm-title">Manage People</div>
       <div class="confirm-text">รายชื่อนี้ใช้ร่วมกันทั้ง “ใครหารบ้าง” และ “จ่ายโดยใคร”</div>
+      <div class="manager-owner-row">
+        <label for="managerOwnerSelect">User</label>
+        <select id="managerOwnerSelect"></select>
+      </div>
       <div id="peopleList" class="people-list"></div>
       <div class="people-add">
         <input id="newPersonName" type="text" placeholder="เพิ่มชื่อ เช่น Mom, Jane">
@@ -335,7 +513,7 @@
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const ME = 'Gift';
+  let ME = 'Gift';
   const STORAGE_KEY = 'beijing-expense-2026-v1';
   const SETTINGS_KEY = 'beijing-expense-settings-v1';
   const colors = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)'];
@@ -364,6 +542,11 @@
   ];
   let people = DEFAULT_PEOPLE.map(x=>({...x}));
 
+  function personDisplayHtml(person){
+    const user = person.id===ME ? '<span class="user-badge">User</span>' : '';
+    return `${esc(person.label)}${user}`;
+  }
+
   function activePeople(){ return people.filter(p=>p.active!==false); }
   function activePeopleIds(){ return activePeople().map(p=>p.id); }
   function personLabel(id){
@@ -382,7 +565,7 @@
   }
   function updateParticipantSummary(){
     const arr=selectedParticipants();
-    $('participantSummary').textContent=arr.length?arr.map(personLabel).join(', '):'เลือก';
+    $('participantSummary').textContent=arr.length?arr.map(id=>personLabel(id)+(id===ME?' · User':'')).join(', '):'เลือก';
   }
   function selectedPayers(){
     return [...document.querySelectorAll('#payerMenu input[type="checkbox"]:checked')].map(x=>x.value);
@@ -395,7 +578,7 @@
   }
   function updatePayerSummary(){
     const arr=selectedPayers();
-    $('payerSummary').textContent=arr.length?arr.map(personLabel).join(', '):'เลือก';
+    $('payerSummary').textContent=arr.length?arr.map(id=>personLabel(id)+(id===ME?' · User':'')).join(', '):'เลือก';
   }
 
   function renderPeopleMenus(){
@@ -412,7 +595,7 @@
       pLabel.className='multi-select-option';
       const pCb=document.createElement('input');
       pCb.type='checkbox'; pCb.value=person.id; pCb.checked=participantSelected.has(person.id);
-      const pSpan=document.createElement('span'); pSpan.textContent=person.label;
+      const pSpan=document.createElement('span'); pSpan.innerHTML=personDisplayHtml(person);
       pLabel.append(pCb,pSpan);
       $('participantMenu').insertBefore(pLabel,participantDone);
 
@@ -420,7 +603,7 @@
       yLabel.className='multi-select-option';
       const yCb=document.createElement('input');
       yCb.type='checkbox'; yCb.value=person.id; yCb.checked=payerSelected.has(person.id);
-      const ySpan=document.createElement('span'); ySpan.textContent=person.label;
+      const ySpan=document.createElement('span'); ySpan.innerHTML=personDisplayHtml(person);
       yLabel.append(yCb,ySpan);
       $('payerMenu').insertBefore(yLabel,payerDone);
     });
@@ -428,6 +611,42 @@
     updateParticipantSummary();
     updatePayerSummary();
   }
+  function renderOwnerSelect(){
+    const current=ME;
+    $('ownerSelect').innerHTML=activePeople()
+      .map(p=>`<option value="${esc(p.id)}">${esc(p.label)}</option>`)
+      .join('');
+    if(activePeopleIds().includes(current)){
+      $('ownerSelect').value=current;
+    }else{
+      ME=activePeopleIds()[0] || 'Gift';
+      $('ownerSelect').value=ME;
+    }
+  }
+
+  function expenseShareTHB(x, personId=ME){
+    const participants=normalizedParticipants(x);
+    if(!participants.includes(personId) || !participants.length) return 0;
+    return Number(x.totalTHB||0)/participants.length;
+  }
+
+  function expenseShareCNY(x, personId=ME){
+    const participants=normalizedParticipants(x);
+    if(!participants.includes(personId) || !participants.length) return 0;
+    const totalCNY = Number(x.totalCNY||0) || (Number(x.totalTHB||0) / Math.max(.0001, Number(x.fx)||1));
+    return totalCNY/participants.length;
+  }
+
+  function settlementMap(x){
+    if(!x.settledByPerson || typeof x.settledByPerson!=='object') x.settledByPerson={};
+    return x.settledByPerson;
+  }
+
+  function isSettled(x, personId){
+    return !!settlementMap(x)[personId];
+  }
+
+
   let fxManual = false;
   let fxRequestSeq = 0;
 
@@ -523,7 +742,22 @@
           const payers = Array.isArray(x.payers) && x.payers.length
             ? x.payers
             : [x.payer || activePeopleIds()[0] || 'Gift'];
-          return {...x, split, participants, payers, payer:payers[0] || x.payer || activePeopleIds()[0] || 'Gift', repaidToMe:(x.repaidToMe&&typeof x.repaidToMe==='object')?x.repaidToMe:{}};
+          const settledByPerson=(x.settledByPerson&&typeof x.settledByPerson==='object')
+            ? {...x.settledByPerson}
+            : {};
+          // Backward compatibility with the original Gift-centric repayment fields.
+          if(x.repaid===true && participants.includes('Gift') && !payers.includes('Gift')){
+            settledByPerson['Gift']=true;
+          }
+          if(x.repaidToMe && typeof x.repaidToMe==='object' && payers.includes('Gift')){
+            Object.entries(x.repaidToMe).forEach(([person,paid])=>{
+              if(paid) settledByPerson[person]=true;
+            });
+          }
+          return {...x, split, participants, payers,
+            payer:payers[0] || x.payer || activePeopleIds()[0] || 'Gift',
+            settledByPerson,
+            repaidToMe:(x.repaidToMe&&typeof x.repaidToMe==='object')?x.repaidToMe:{}};
         });
       }
       if(settings){
@@ -531,6 +765,11 @@
           people=settings.people
             .filter(x=>x&&x.id&&x.label)
             .map(x=>({id:String(x.id),label:String(x.label),active:x.active!==false}));
+        }
+        if(settings.ownerId && people.some(p=>p.id===settings.ownerId && p.active!==false)){
+          ME=String(settings.ownerId);
+        }else if(activePeopleIds().length){
+          ME=activePeopleIds()[0];
         }
         if(Array.isArray(settings.categories) && settings.categories.length) state.categories = settings.categories;
         if(Array.isArray(settings.payments) && settings.payments.length) state.payments = settings.payments;
@@ -541,7 +780,7 @@
   function persist(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify({expenses:state.expenses}));
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      categories:state.categories,payments:state.payments,people,syncUrl:$('syncUrl').value.trim()
+      categories:state.categories,payments:state.payments,people,ownerId:ME,syncUrl:$('syncUrl').value.trim()
     }));
   }
 
@@ -634,14 +873,14 @@
 
   function amountOthersOweMe(x){
     const people=peopleWhoOweMe(x);
-    const map=ensureRepaidToMeMap(x);
+    const map=settlementMap(x);
     const share=shareTHB(x);
     return people.reduce((sum,p)=>sum+(map[p]?0:share),0);
   }
 
   function receivableCounts(x){
     const people=peopleWhoOweMe(x);
-    const map=ensureRepaidToMeMap(x);
+    const map=settlementMap(x);
     return {
       total:people.length,
       unpaid:people.filter(p=>!map[p]).length,
@@ -651,7 +890,7 @@
 
   function renderPie(net){
     const sums = {};
-    state.expenses.forEach(x => sums[x.category] = (sums[x.category] || 0) + x.myTHB);
+    state.expenses.forEach(x => sums[x.category] = (sums[x.category] || 0) + expenseShareTHB(x));
     const entries = Object.entries(sums).sort((a,b)=>b[1]-a[1]);
     const svg = $('pieChart');
     if(!entries.length || !net){
@@ -671,16 +910,16 @@
   function render(){
     const filter = $('filterCategory').value;
     const rows = filter ? state.expenses.filter(x=>x.category===filter) : state.expenses;
-    const net = state.expenses.reduce((s,x)=>s+Number(x.myTHB||0),0);
-    const netCny = state.expenses.reduce((s,x)=>s+Number(x.myCNY||0),0);
+    const net = state.expenses.reduce((s,x)=>s+expenseShareTHB(x),0);
+    const netCny = state.expenses.reduce((s,x)=>s+expenseShareCNY(x),0);
     const group = state.expenses.reduce((s,x)=>s+Number(x.totalTHB||0),0);
 
-    // "ต้องจ่ายคืน" = G. participated but G. was not a payer, and G. has not paid back yet.
+    // "ต้องจ่ายคืน" = current owner participated, was not a payer, and has not paid back yet.
     const due = state.expenses
-      .filter(x=>normalizedParticipants(x).includes(ME) && !normalizedPayers(x).includes(ME) && !x.repaid)
-      .reduce((s,x)=>s+Number(x.myTHB||0),0);
+      .filter(x=>normalizedParticipants(x).includes(ME) && !normalizedPayers(x).includes(ME) && !isSettled(x,ME))
+      .reduce((s,x)=>s+expenseShareTHB(x),0);
 
-    // "รอจ่ายคืน" = G. is a payer and other split participants still owe G.
+    // "รอจ่ายคืน" = current owner is a payer and other split participants still owe them.
     const receivable = state.expenses.reduce((s,x)=>s+amountOthersOweMe(x),0);
 
     $('netExpense').textContent=fmtTHB(net);
@@ -695,7 +934,7 @@
       const payerLabels=payers.map(p=>personLabel(p)).join(', ');
       const share=shareTHB(x);
       const owePeople=peopleWhoOweMe(x);
-      const repayMap=ensureRepaidToMeMap(x);
+      const repayMap=settlementMap(x);
       const counts=receivableCounts(x);
       const owedNow=amountOthersOweMe(x);
       const isCollapsed=collapsedReceivables.has(Number(x.id));
@@ -728,13 +967,13 @@
                   </label>`).join('')}
               </div>`}
           </div>`;
-      }else if(!payers.includes(ME) && participants.includes(ME) && Number(x.myTHB||0)>0){
+      }else if(!payers.includes(ME) && participants.includes(ME) && expenseShareTHB(x)>0){
         settlementHtml = `
           <label class="repay">
-            <input type="checkbox" data-repaid="${x.id}" ${x.repaid?'checked':''}>
+            <input type="checkbox" data-repaid="${x.id}" ${isSettled(x,ME)?'checked':''}>
             <span>จ่ายคืนแล้ว</span>
           </label>
-          <div class="status">Status: ${x.repaid?'จ่ายคืนแล้ว':'ยังต้องจ่ายคืน'}</div>`;
+          <div class="status">Status: ${isSettled(x,ME)?'จ่ายคืนแล้ว':'ยังต้องจ่ายคืน'}</div>`;
       }else{
         settlementHtml = `<div class="status">Status: ${
           !participants.includes(ME) ? 'ไม่ได้ร่วมหาร' :
@@ -749,7 +988,7 @@
               <div class="expense-title">${esc(x.detail)}</div>
               <div class="muted">${esc(x.category)} · ${x.date.split('-').reverse().join('/')}</div>
               <div class="muted" style="margin-top:10px">Net Expense ของเรา</div>
-              <div class="expense-net">${fmtTHB(x.myTHB)}</div>
+              <div class="expense-net">${fmtTHB(expenseShareTHB(x))}</div>
               <div class="muted">ยอดทั้งหมด ${fmtTHB(x.totalTHB)} · หารกับ ${participants.map(p=>personLabel(p)).join(', ')}</div>
               <div style="font-size:14px;margin-top:8px">จ่ายโดย ${esc(payerLabels)}</div>
               <div class="muted">Payment Method: ${esc(x.payment || '-')}</div>
@@ -773,8 +1012,8 @@
     $('cancelEdit').classList.add('hidden');
     $('detail').value='';
     $('amount').value='';
-    setParticipants([activePeopleIds()[0]||'Gift']);
-    setPayers([activePeopleIds()[0]||'Gift']);
+    setParticipants([ME]);
+    setPayers([ME]);
     $('date').value=todayLocalISO();
     fxManual=false;
     fetchFxForDate({force:true});
@@ -788,7 +1027,10 @@
       id:state.editingId||Date.now(),date:$('date').value,detail:$('detail').value.trim(),
       category:$('category').value,currency:x.currency,amount:x.amount,fx:x.fx,split:x.split,participants:x.participants,
       payers:selectedPayers(),payer:selectedPayers()[0]||'',payment:$('paymentMethod').value,totalTHB:x.totalTHB,totalCNY:x.totalCNY,
-      myTHB:x.myTHB,myCNY:x.myCNY,repaid:selectedPayers().includes(ME)?true:(existing?existing.repaid:false),repaidToMe:existing&&existing.repaidToMe?existing.repaidToMe:{},
+      myTHB:x.myTHB,myCNY:x.myCNY,
+      settledByPerson:existing&&existing.settledByPerson?existing.settledByPerson:{},
+      repaid:existing?existing.repaid:false,
+      repaidToMe:existing&&existing.repaidToMe?existing.repaidToMe:{},
       updatedAt:new Date().toISOString()
     };
     if(!rec.detail||!rec.amount||!rec.split){alert('กรุณาเลือกอย่างน้อย 1 คนใน “ใครหารบ้าง”');return;}
@@ -862,6 +1104,14 @@
   });
 
 
+  function renderManagerOwnerSelect(){
+    if(!$('managerOwnerSelect')) return;
+    $('managerOwnerSelect').innerHTML=activePeople()
+      .map(p=>`<option value="${esc(p.id)}">${esc(p.label)}${p.id===ME?' · User':''}</option>`)
+      .join('');
+    $('managerOwnerSelect').value=ME;
+  }
+
   function renderPeopleManager(){
     $('peopleList').innerHTML=activePeople().map(person=>`
       <div class="people-item">
@@ -873,6 +1123,7 @@
   }
 
   function openPeopleManager(){
+    renderManagerOwnerSelect();
     renderPeopleManager();
     $('newPersonName').value='';
     $('peopleDialog').classList.remove('hidden');
@@ -881,6 +1132,7 @@
   function closePeopleManager(){
     $('peopleDialog').classList.add('hidden');
     renderPeopleMenus();
+    renderOwnerSelect();
     persist();
   }
 
@@ -899,6 +1151,7 @@
     $('newPersonName').value='';
     renderPeopleManager();
     renderPeopleMenus();
+    renderOwnerSelect();
     persist();
   });
 
@@ -917,6 +1170,7 @@
       if(person) person.label=label;
       renderPeopleManager();
       renderPeopleMenus();
+      renderOwnerSelect();
       render();
       persist();
       return;
@@ -931,6 +1185,10 @@
       const id=del.dataset.deletePerson;
       const person=people.find(p=>p.id===id);
       if(!person) return;
+      if(id===ME){
+        alert('ชื่อนี้ถูกตั้งเป็น “This is me” อยู่ กรุณาเปลี่ยนเจ้าของก่อนลบ');
+        return;
+      }
 
       const used=state.expenses.some(x=>
         (Array.isArray(x.participants)&&x.participants.includes(id)) ||
@@ -945,6 +1203,7 @@
       person.active=false;
       renderPeopleManager();
       renderPeopleMenus();
+      renderOwnerSelect();
       render();
       persist();
     }
@@ -952,6 +1211,31 @@
 
   $('peopleDialog').addEventListener('click',e=>{
     if(e.target===$('peopleDialog')) closePeopleManager();
+  });
+
+
+  /* hidden ownerSelect sync retained */
+  $('ownerSelect').addEventListener('change',()=>{
+    const next=$('ownerSelect').value;
+    if(!activePeopleIds().includes(next)) return;
+    ME=next;
+    // Recalculate the whole dashboard from the selected person's perspective.
+    preview();
+    render();
+    persist();
+  });
+
+
+  $('managerOwnerSelect').addEventListener('change',()=>{
+    const next=$('managerOwnerSelect').value;
+    if(!activePeopleIds().includes(next)) return;
+    ME=next;
+    renderOwnerSelect();
+    renderPeopleMenus();
+    renderManagerOwnerSelect();
+    preview();
+    render();
+    persist();
   });
 
   $('filterCategory').addEventListener('change',render);
@@ -962,7 +1246,7 @@
     if(payBack){
       const x=state.expenses.find(v=>v.id===Number(payBack.dataset.repaid));
       if(x){
-        x.repaid=payBack.checked;
+        settlementMap(x)[ME]=payBack.checked;
         x.updatedAt=new Date().toISOString();
         render();
       }
@@ -974,7 +1258,7 @@
       const x=state.expenses.find(v=>v.id===Number(paidToMe.dataset.repaidToMe));
       if(x){
         const person=paidToMe.dataset.person;
-        ensureRepaidToMeMap(x)[person]=paidToMe.checked;
+        settlementMap(x)[person]=paidToMe.checked;
         x.updatedAt=new Date().toISOString();
         render();
       }
@@ -1091,7 +1375,7 @@
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='beijing-expenses.json';a.click();URL.revokeObjectURL(a.href);
   });
 
-  load(); renderCategories(); renderPayments(); renderPeopleMenus(); $('date').value=todayLocalISO(); setParticipants([activePeopleIds()[0]||'Gift']); setPayers([activePeopleIds()[0]||'Gift']); preview(); render(); fetchFxForDate({force:true});
+  load(); renderCategories(); renderPayments(); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); fetchFxForDate({force:true});
 
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));

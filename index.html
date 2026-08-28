@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: date-ios-native-fix-v19 -->
+  <!-- app-version: dynamic-currency-v20 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -360,7 +360,26 @@
       </div>
 
       <div class="row2">
-        <div class="field"><label for="currency">สกุลเงิน</label><select id="currency"><option value="CNY">CNY ¥</option><option value="THB">THB ฿</option></select></div>
+        <div class="field">
+        <label for="currency">สกุลเงิน</label>
+        <div class="minimal-select-wrap"><select id="currency"></select></div>
+        <div class="mini-manage-row"><button id="manageCurrency" class="mini-manage" type="button">Manage</button></div>
+      </div>
+
+      <div id="currencyManager" class="panel hidden">
+        <div class="manager-row" style="grid-template-columns:minmax(0,1fr) auto">
+          <div>
+            <strong>THB ฿</strong>
+            <div class="muted">Base currency · FX = 1 · ลบไม่ได้</div>
+          </div>
+        </div>
+        <div id="currencyList"></div>
+        <div class="inline" style="margin-top:8px">
+          <input id="newCurrencyCode" maxlength="3" autocapitalize="characters" placeholder="เช่น USD">
+          <input id="newCurrencySymbol" maxlength="4" placeholder="สัญลักษณ์ เช่น $">
+          <button id="addCurrency" class="btn btn-small" type="button">Add</button>
+        </div>
+      </div>
         <div class="field"><label for="amount">ยอดทั้งหมด</label><input id="amount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required></div>
       </div>
 
@@ -526,6 +545,15 @@
     editingId: null,
     categories: ['อาหาร','คาเฟ่ / เครื่องดื่ม','เดินทาง','โรงแรม','ตั๋ว / สถานที่เที่ยว','Shopping','SIM / Internet','ของฝาก','อื่น ๆ'],
     payments: ['Cash','Boarding Card','Credit Card'],
+    currencies: [
+      {code:'THB',symbol:'฿',active:true,locked:true},
+      {code:'CNY',symbol:'¥',active:true},
+      {code:'USD',symbol:'$',active:true},
+      {code:'JPY',symbol:'¥',active:true},
+      {code:'EUR',symbol:'€',active:true},
+      {code:'SGD',symbol:'S$',active:true},
+      {code:'HKD',symbol:'HK$',active:true}
+    ],
     categoryEditing: null,
     paymentEditing: null
   };
@@ -533,6 +561,7 @@
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const fmtTHB = n => '฿' + Number(n || 0).toLocaleString('th-TH',{maximumFractionDigits:2});
   const fmtCNY = n => '¥' + Number(n || 0).toLocaleString('zh-CN',{maximumFractionDigits:2});
+  const fmtForeign = (n,code) => `${currencyByCode(code)?.symbol||code} ${Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2})}`;
   const DEFAULT_PEOPLE = [
     {id:'Gift',label:'G.',active:true},
     {id:'Pupple',label:'Pupple',active:true},
@@ -647,6 +676,51 @@
   }
 
 
+
+  function activeCurrencies(){
+    return state.currencies.filter(c=>c.active!==false);
+  }
+
+  function currencyByCode(code){
+    return state.currencies.find(c=>c.code===code);
+  }
+
+  function currencyLabel(code){
+    const c=currencyByCode(code);
+    return c ? `${c.code} ${c.symbol||''}`.trim() : code;
+  }
+
+  function renderCurrencies(selected){
+    const cur = selected || $('currency').value || 'CNY';
+    $('currency').innerHTML = activeCurrencies()
+      .map(c=>`<option value="${esc(c.code)}">${esc(currencyLabel(c.code))}</option>`)
+      .join('');
+    $('currency').value = activeCurrencies().some(c=>c.code===cur) ? cur : (activeCurrencies()[0]?.code || 'THB');
+    updateFxLabel();
+    renderCurrencyManager();
+  }
+
+  function renderCurrencyManager(){
+    if(!$('currencyList')) return;
+    const rows = state.currencies
+      .filter(c=>c.code!=='THB' && c.active!==false)
+      .map(c=>`
+        <div class="manager-row" data-currency-row="${esc(c.code)}">
+          <span>${esc(c.code)} ${esc(c.symbol||'')}</span>
+          <button class="btn btn-small btn-danger" data-currency-del="${esc(c.code)}" type="button">Delete</button>
+        </div>`)
+      .join('');
+    $('currencyList').innerHTML = rows || '<div class="muted" style="padding:6px 0">ยังไม่มีสกุลเงินเพิ่มเติม</div>';
+  }
+
+  function updateFxLabel(){
+    const code=$('currency').value || 'THB';
+    const label=$('fx').closest('.field')?.querySelector('label');
+    if(label){
+      label.innerHTML=`FX <span class="muted">· 1 ${esc(code)} = ? THB</span>`;
+    }
+  }
+
   let fxManual = false;
   let fxRequestSeq = 0;
 
@@ -660,6 +734,7 @@
 
   async function fetchFxForDate({force=false}={}){
     const date=$('date').value || todayLocalISO();
+    const currency=$('currency').value || 'CNY';
 
     if(fxManual && !force){
       setFxStatus('Manual · แก้เรทเอง');
@@ -667,6 +742,15 @@
     }
 
     const requestId=++fxRequestSeq;
+
+    if(currency==='THB'){
+      $('fx').value='1';
+      fxManual=false;
+      setFxStatus('Base currency · THB');
+      preview();
+      return;
+    }
+
     setFxStatus('กำลังโหลด FX...');
 
     const today=todayLocalISO();
@@ -674,8 +758,8 @@
 
     // Future date (or no historical rate): use latest available rate.
     const url=isFuture
-      ? 'https://api.frankfurter.dev/v1/latest?base=CNY&symbols=THB'
-      : `https://api.frankfurter.dev/v1/${date}?base=CNY&symbols=THB`;
+      ? `https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(currency)}&symbols=THB`
+      : `https://api.frankfurter.dev/v1/${date}?base=${encodeURIComponent(currency)}&symbols=THB`;
 
     try{
       const resp=await fetch(url,{cache:'no-store'});
@@ -703,7 +787,7 @@
 
       // If historical lookup fails, fall back to latest.
       try{
-        const latestResp=await fetch('https://api.frankfurter.dev/v1/latest?base=CNY&symbols=THB',{cache:'no-store'});
+        const latestResp=await fetch(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(currency)}&symbols=THB`,{cache:'no-store'});
         if(!latestResp.ok) throw new Error('Latest FX failed');
         const latest=await latestResp.json();
         const rate=Number(latest?.rates?.THB);
@@ -773,6 +857,19 @@
         }
         if(Array.isArray(settings.categories) && settings.categories.length) state.categories = settings.categories;
         if(Array.isArray(settings.payments) && settings.payments.length) state.payments = settings.payments;
+        if(Array.isArray(settings.currencies) && settings.currencies.length){
+          state.currencies=settings.currencies
+            .filter(c=>c&&c.code)
+            .map(c=>({
+              code:String(c.code).toUpperCase(),
+              symbol:String(c.symbol||''),
+              active:c.active!==false,
+              locked:c.code==='THB'||c.locked===true
+            }));
+          if(!state.currencies.some(c=>c.code==='THB')){
+            state.currencies.unshift({code:'THB',symbol:'฿',active:true,locked:true});
+          }
+        }
         if(settings.syncUrl) $('syncUrl').value = settings.syncUrl;
       }
     }catch(e){}
@@ -780,7 +877,7 @@
   function persist(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify({expenses:state.expenses}));
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      categories:state.categories,payments:state.payments,people,ownerId:ME,syncUrl:$('syncUrl').value.trim()
+      categories:state.categories,payments:state.payments,currencies:state.currencies,people,ownerId:ME,syncUrl:$('syncUrl').value.trim()
     }));
   }
 
@@ -802,15 +899,26 @@
   }
 
   function calc(){
-    const amount=Math.max(0,parseFloat($('amount').value)||0);
-    const fx=Math.max(.0001,parseFloat($('fx').value)||4.6);
+    const amount=Number($('amount').value)||0;
+    const fx=Number($('fx').value)||0;
     const participants=selectedParticipants();
-    const split=participants.length;
-    const currency=$('currency').value;
-    const totalTHB=currency==='THB'?amount:amount*fx;
-    const totalCNY=currency==='CNY'?amount:amount/fx;
+    const split=participants.length||1;
+    const currency=$('currency').value || 'THB';
+    const totalTHB = currency==='THB' ? amount : amount*fx;
+    const totalForeign = currency==='THB' ? amount : amount;
     const includesMe=participants.includes(ME);
-    return {amount,fx,split,participants,currency,totalTHB,totalCNY,myTHB:split&&includesMe?totalTHB/split:0,myCNY:split&&includesMe?totalCNY/split:0,includesMe};
+    const myTHB=split&&includesMe?totalTHB/split:0;
+    const myForeign=split&&includesMe?totalForeign/split:0;
+    return {
+      amount,fx,split,participants,currency,
+      totalTHB,
+      totalCNY: currency==='CNY' ? totalForeign : 0,
+      totalForeign,
+      myTHB,
+      myCNY: currency==='CNY' ? myForeign : 0,
+      myForeign,
+      includesMe
+    };
   }
   function preview(){
     const x = calc(), payers=selectedPayers();
@@ -837,7 +945,7 @@
       </div>
       <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
         <div class="muted">Net Expense ของเรา</div>
-        <div class="big">${fmtTHB(x.myTHB)} <span class="muted">≈ ${fmtCNY(x.myCNY)}</span></div>
+        <div class="big">${fmtTHB(x.myTHB)} <span class="muted">≈ ${fmtForeign(x.myForeign,x.currency)}</span></div>
         <div class="muted" style="margin-top:5px">${paymentNote}</div>
       </div>`;
   }
@@ -923,7 +1031,18 @@
     const receivable = state.expenses.reduce((s,x)=>s+amountOthersOweMe(x),0);
 
     $('netExpense').textContent=fmtTHB(net);
-    $('netExpenseCny').textContent='≈ '+fmtCNY(netCny);
+    const usedCurrencies=[...new Set(state.expenses.map(x=>x.currency||'THB'))].filter(c=>c!=='THB');
+    if(usedCurrencies.length===1){
+      const code=usedCurrencies[0];
+      const foreignTotal=state.expenses
+        .filter(x=>(x.currency||'THB')===code)
+        .reduce((s,x)=>s+(Number(x.totalForeign||x.amount||0)/(normalizedParticipants(x).length||1) * (normalizedParticipants(x).includes(ME)?1:0)),0);
+      $('netExpenseCny').textContent='≈ '+fmtForeign(foreignTotal,code);
+    }else if(usedCurrencies.length>1){
+      $('netExpenseCny').textContent='หลายสกุลเงิน · รวมเป็น THB แล้ว';
+    }else{
+      $('netExpenseCny').textContent='';
+    }
     $('groupSpend').textContent=fmtTHB(group);
     $('outstanding').textContent=fmtTHB(due);
     if($('receivable')) $('receivable').textContent=fmtTHB(receivable);
@@ -1015,6 +1134,7 @@
     setParticipants([ME]);
     setPayers([ME]);
     $('date').value=todayLocalISO();
+    renderCurrencies(activeCurrencies().some(c=>c.code==='CNY')?'CNY':(activeCurrencies()[0]?.code||'THB'));
     fxManual=false;
     fetchFxForDate({force:true});
     preview();
@@ -1026,8 +1146,8 @@
     const rec={
       id:state.editingId||Date.now(),date:$('date').value,detail:$('detail').value.trim(),
       category:$('category').value,currency:x.currency,amount:x.amount,fx:x.fx,split:x.split,participants:x.participants,
-      payers:selectedPayers(),payer:selectedPayers()[0]||'',payment:$('paymentMethod').value,totalTHB:x.totalTHB,totalCNY:x.totalCNY,
-      myTHB:x.myTHB,myCNY:x.myCNY,
+      payers:selectedPayers(),payer:selectedPayers()[0]||'',payment:$('paymentMethod').value,totalTHB:x.totalTHB,totalCNY:x.totalCNY,totalForeign:x.totalForeign,
+      myTHB:x.myTHB,myCNY:x.myCNY,myForeign:x.myForeign,
       settledByPerson:existing&&existing.settledByPerson?existing.settledByPerson:{},
       repaid:existing?existing.repaid:false,
       repaidToMe:existing&&existing.repaidToMe?existing.repaidToMe:{},
@@ -1041,7 +1161,13 @@
     resetForm(); render();
   });
 
-  ['amount','currency'].forEach(id=>$(id).addEventListener('input',preview));
+  $('amount').addEventListener('input',preview);
+
+  $('currency').addEventListener('change',()=>{
+    updateFxLabel();
+    fxManual=false;
+    fetchFxForDate({force:true});
+  });
 
   $('fx').addEventListener('input',()=>{
     fxManual=true;
@@ -1238,6 +1364,52 @@
     persist();
   });
 
+
+  $('manageCurrency').addEventListener('click',()=>{
+    $('currencyManager').classList.toggle('hidden');
+    renderCurrencyManager();
+  });
+
+  $('addCurrency').addEventListener('click',()=>{
+    const code=$('newCurrencyCode').value.trim().toUpperCase();
+    const symbol=$('newCurrencySymbol').value.trim();
+    if(!/^[A-Z]{3}$/.test(code)){
+      alert('กรุณาใส่รหัสสกุลเงิน 3 ตัว เช่น USD, KRW, AUD');
+      return;
+    }
+    const existing=state.currencies.find(c=>c.code===code);
+    if(existing){
+      existing.active=true;
+      if(symbol) existing.symbol=symbol;
+    }else{
+      state.currencies.push({code,symbol,active:true});
+    }
+    $('newCurrencyCode').value='';
+    $('newCurrencySymbol').value='';
+    renderCurrencies(code);
+    persist();
+    fxManual=false;
+    fetchFxForDate({force:true});
+  });
+
+  $('currencyList').addEventListener('click',e=>{
+    const btn=e.target.closest('[data-currency-del]');
+    if(!btn) return;
+    const code=btn.dataset.currencyDel;
+    if(code==='THB') return;
+    const c=state.currencies.find(x=>x.code===code);
+    if(!c) return;
+    if(!confirm(`ต้องการลบ ${code} ออกจากตัวเลือกหรือไม่?`)) return;
+    c.active=false;
+    if($('currency').value===code){
+      $('currency').value=activeCurrencies()[0]?.code || 'THB';
+    }
+    renderCurrencies($('currency').value);
+    persist();
+    fxManual=false;
+    fetchFxForDate({force:true});
+  });
+
   $('filterCategory').addEventListener('change',render);
   $('cancelEdit').addEventListener('click',resetForm);
 
@@ -1375,7 +1547,7 @@
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='beijing-expenses.json';a.click();URL.revokeObjectURL(a.href);
   });
 
-  load(); renderCategories(); renderPayments(); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); fetchFxForDate({force:true});
+  load(); renderCategories(); renderPayments(); renderCurrencies('CNY'); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); fetchFxForDate({force:true});
 
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));

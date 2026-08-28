@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: editable-expense-title-v24 -->
+  <!-- app-version: calculator-popup-v27 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -61,6 +61,23 @@
     .manager-row{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:12px;padding:8px 9px;margin-top:7px}
     .manager-row span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis}
     .sync-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
+
+    .sync-connection{margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:14px;background:#fff}
+    .sync-connection-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .sync-connection-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700}
+    .sync-dot{width:8px;height:8px;border-radius:50%;background:#b8b8b8;flex:0 0 auto}
+    .sync-dot.connected{background:#2f8f57}.sync-dot.pending{background:#c99122}.sync-dot.error{background:#bb4d4d}
+    .sync-meta{margin-top:5px;font-size:12px;color:var(--muted);line-height:1.45;word-break:break-word}
+    .sync-status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+    .sync-status-text{min-width:0;flex:1;font-size:12px;color:var(--muted);line-height:1.45}
+    .sync-change{border:0;background:transparent;padding:5px 0;font:inherit;font-size:12px;color:var(--muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer;white-space:nowrap}
+    .sync-setup{margin-top:12px}.sync-setup.hidden{display:none}
+    .sync-choice{margin-top:10px;padding:12px;border:1px solid var(--border);border-radius:14px;background:#fff}
+    .sync-choice-title{font-size:14px;font-weight:700;margin-bottom:4px}
+    .sync-choice .muted{font-size:12px}
+    .sync-choice-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    @media(max-width:520px){.sync-choice-actions{grid-template-columns:1fr}}
+
     .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
     @media(max-width:560px){
       .app{padding:12px 10px 48px}
@@ -470,6 +487,79 @@
       font-size:12px;
     }
 
+
+    .amount-wrap{position:relative}
+    .amount-wrap input{padding-right:52px}
+    .calc-icon-btn{
+      position:absolute;right:10px;top:50%;transform:translateY(-50%);
+      width:34px;height:34px;border:0;background:transparent;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;cursor:pointer;color:#2c3138;
+    }
+    .calc-icon-btn:active{background:#f1f3f5}
+    .calc-icon-btn svg{width:21px;height:21px;stroke:currentColor}
+
+    .calc-modal{
+      position:fixed;inset:0;z-index:9999;
+      background:#f4f4f5;
+      display:flex;justify-content:center;
+    }
+    .calc-modal.hidden{display:none}
+    .calc-sheet{
+      width:100%;max-width:560px;min-height:100%;
+      box-sizing:border-box;
+      display:flex;flex-direction:column;
+      padding:calc(env(safe-area-inset-top, 0px) + 16px) 18px calc(env(safe-area-inset-bottom, 0px) + 18px);
+    }
+    .calc-topbar{
+      display:grid;grid-template-columns:1fr auto 1fr;
+      align-items:center;gap:12px;
+    }
+    .calc-topbar-title{
+      font-size:20px;font-weight:700;text-align:center;
+    }
+    .calc-topbar-left{text-align:left}
+    .calc-topbar-right{text-align:right}
+    .calc-pill{
+      border:0;background:#fff;border-radius:999px;
+      padding:10px 16px;font:inherit;font-size:16px;
+      box-shadow:0 8px 22px rgba(0,0,0,.06);
+      cursor:pointer;
+    }
+    .calc-screen{
+      min-height:230px;
+      display:flex;align-items:flex-end;justify-content:flex-end;
+      padding:18px 8px 24px;
+      box-sizing:border-box;
+    }
+    .calc-display{
+      width:100%;border:0;background:transparent;
+      font-size:66px;line-height:1;font-weight:500;
+      text-align:right;color:#111;outline:none;padding:0;margin:0;
+    }
+    .calc-grid{
+      display:grid;grid-template-columns:repeat(4,1fr);
+      gap:1px;background:#e7e7e9;
+      border-radius:18px;overflow:hidden;
+    }
+    .calc-key{
+      border:0;background:#fff;min-height:86px;
+      font-size:28px;cursor:pointer;
+    }
+    .calc-key:active{background:#efeff1}
+    .calc-key.primary{font-weight:700}
+    .calc-key.equal{
+      grid-column:4;
+      grid-row:4 / span 2;
+      min-height:173px;
+    }
+    @media(max-width:420px){
+      .calc-sheet{padding-left:14px;padding-right:14px}
+      .calc-screen{min-height:205px}
+      .calc-display{font-size:58px}
+      .calc-key{min-height:78px;font-size:26px}
+      .calc-key.equal{min-height:157px}
+    }
+
 </style>
 </head>
 <body>
@@ -550,7 +640,24 @@
           <button id="addCurrency" class="btn btn-small" type="button">Add</button>
         </div>
       </div>
-        <div class="field"><label for="amount">ยอดทั้งหมด</label><input id="amount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required></div>
+        <div class="field"><label for="amount">ยอดทั้งหมด</label><div class="amount-wrap"><input id="amount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required>
+      <button id="openCalculator" class="calc-icon-btn" type="button" aria-label="Calculator" title="Calculator">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="5" y="2.8" width="14" height="18.4" rx="2.2"></rect>
+          <line x1="8" y1="7" x2="16" y2="7"></line>
+          <circle cx="8.5" cy="11" r=".7" fill="currentColor" stroke="none"></circle>
+          <circle cx="12" cy="11" r=".7" fill="currentColor" stroke="none"></circle>
+          <circle cx="15.5" cy="11" r=".7" fill="currentColor" stroke="none"></circle>
+          <circle cx="8.5" cy="14.5" r=".7" fill="currentColor" stroke="none"></circle>
+          <circle cx="12" cy="14.5" r=".7" fill="currentColor" stroke="none"></circle>
+          <circle cx="15.5" cy="14.5" r=".7" fill="currentColor" stroke="none"></circle>
+          <circle cx="8.5" cy="18" r=".7" fill="currentColor" stroke="none"></circle>
+          <circle cx="12" cy="18" r=".7" fill="currentColor" stroke="none"></circle>
+          <circle cx="15.5" cy="18" r=".7" fill="currentColor" stroke="none"></circle>
+        </svg>
+      </button>
+    </div>
+</div>
       </div>
 
       <div class="row2">
@@ -715,18 +822,48 @@
       <summary>Online Sync</summary>
       <div class="settings-subset-body">
         <section class="card">
-    <h2>Excel Online Sync</h2>
-    <div class="muted">Optional · ใช้ Power Automate / Microsoft Graph เป็นตัวกลาง</div>
-    <div class="field" style="margin-top:12px">
-      <label for="syncUrl">Power Automate HTTP URL</label>
-      <input id="syncUrl" type="url" placeholder="วาง URL ของ Flow ที่รับข้อมูล">
-    </div>
-    <div class="toolbar">
-      <button id="syncNow" class="btn" type="button">Sync ตอนนี้</button>
-      <button id="exportJson" class="btn" type="button">Export JSON</button>
-    </div>
-    <div id="syncStatus" class="sync-note">ข้อมูลจะถูกเก็บในเครื่องนี้อัตโนมัติก่อนเสมอ แม้ยังไม่ได้เชื่อม Excel Online</div>
-  </section>
+          <h2>Excel Online Sync</h2>
+          <div class="muted">Optional · เชื่อม Excel ของเครื่องนี้ผ่าน Power Automate</div>
+
+          <div id="syncConnectionCard" class="sync-connection">
+            <div class="sync-connection-top">
+              <div class="sync-connection-title">
+                <span id="syncDot" class="sync-dot"></span>
+                <span id="syncConnectionLabel">Not connected</span>
+              </div>
+              <button id="changeDestination" class="sync-change hidden" type="button">Change destination</button>
+            </div>
+            <div id="syncConnectionMeta" class="sync-meta">ยังไม่ได้เชื่อม Excel Online</div>
+            <div class="sync-status-row">
+              <div id="syncStatus" class="sync-status-text">ข้อมูลจะถูกเก็บในเครื่องนี้อัตโนมัติก่อนเสมอ</div>
+              <button id="syncNow" class="sync-change hidden" type="button">Sync now</button>
+            </div>
+          </div>
+
+          <div id="syncSetup" class="sync-setup">
+            <div class="field">
+              <label for="syncUrl">Power Automate HTTP URL</label>
+              <input id="syncUrl" type="url" placeholder="วาง URL ของ Flow ที่รับข้อมูล">
+            </div>
+            <div class="toolbar">
+              <button id="connectExcel" class="btn" type="button">Connect Excel</button>
+              <button id="cancelChangeDestination" class="btn hidden" type="button">Cancel</button>
+            </div>
+          </div>
+
+          <div id="syncChoice" class="sync-choice hidden">
+            <div class="sync-choice-title">ใช้ Excel ปลายทางใหม่นี้แบบไหน?</div>
+            <div class="muted">เลือกว่าจะส่งรายการเดิมทั้งหมดไปด้วย หรือเริ่ม Sync เฉพาะการเปลี่ยนแปลงจากตอนนี้</div>
+            <div class="sync-choice-actions">
+              <button id="syncAllExisting" class="btn" type="button">Sync all existing expenses</button>
+              <button id="syncFromNow" class="btn" type="button">Start from now</button>
+            </div>
+          </div>
+
+          <div class="toolbar" style="margin-top:10px">
+            <button id="exportJson" class="btn" type="button">Export JSON</button>
+          </div>
+        </section>
       </div>
     </details>
   </section>
@@ -743,6 +880,19 @@
 
   const collapsedReceivables = new Set();
   let deletePendingId = null;
+
+  let syncState = {
+    url: '',
+    mode: 'all',
+    cutoffAt: '',
+    pending: false,
+    lastSyncedAt: '',
+    lastError: '',
+    deleted: []
+  };
+  let syncTimer = null;
+  let syncInFlight = false;
+  let pendingDestinationUrl = '';
 
   let state = {
     expenses: [],
@@ -1079,15 +1229,167 @@
             state.currencies.unshift({code:'THB',symbol:'฿',active:true,locked:true});
           }
         }
-        if(settings.syncUrl) $('syncUrl').value = settings.syncUrl;
+        if(settings.syncUrl){
+          syncState.url = String(settings.syncUrl).trim();
+          $('syncUrl').value = syncState.url;
+        }
+        if(settings.syncMode==='from-now' || settings.syncMode==='all') syncState.mode=settings.syncMode;
+        if(typeof settings.syncCutoffAt==='string') syncState.cutoffAt=settings.syncCutoffAt;
+        if(typeof settings.syncPending==='boolean') syncState.pending=settings.syncPending;
+        if(typeof settings.lastSyncedAt==='string') syncState.lastSyncedAt=settings.lastSyncedAt;
+        if(typeof settings.lastSyncError==='string') syncState.lastError=settings.lastSyncError;
+        if(Array.isArray(settings.syncDeleted)) syncState.deleted=settings.syncDeleted;
       }
     }catch(e){}
   }
   function persist(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify({expenses:state.expenses}));
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      tripName:state.tripName,categories:state.categories,payments:state.payments,currencies:state.currencies,people,ownerId:ME,syncUrl:$('syncUrl').value.trim()
+      tripName:state.tripName,categories:state.categories,payments:state.payments,currencies:state.currencies,people,ownerId:ME,
+      syncUrl:syncState.url,syncMode:syncState.mode,syncCutoffAt:syncState.cutoffAt,syncPending:syncState.pending,
+      lastSyncedAt:syncState.lastSyncedAt,lastSyncError:syncState.lastError,syncDeleted:syncState.deleted
     }));
+  }
+
+
+  function fmtSyncTime(iso){
+    if(!iso) return '';
+    const d=new Date(iso);
+    if(Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'});
+  }
+
+  function maskedDestination(url){
+    if(!url) return '';
+    try{return new URL(url).hostname;}catch(_){return 'Power Automate Flow';}
+  }
+
+  function eligibleExpenses(){
+    if(syncState.mode!=='from-now' || !syncState.cutoffAt) return state.expenses;
+    const cutoff=new Date(syncState.cutoffAt).getTime();
+    return state.expenses.filter(x=>{
+      const t=new Date(x.updatedAt||'').getTime();
+      return Number.isFinite(t) && t>=cutoff;
+    });
+  }
+
+  function buildSyncPayload({forceAll=false}={}){
+    return {
+      schemaVersion:2,
+      trip:state.tripName,
+      owner:ME,
+      ownerLabel:personLabel(ME),
+      syncedAt:new Date().toISOString(),
+      syncMode:forceAll?'all':syncState.mode,
+      destinationCutoffAt:forceAll?'':syncState.cutoffAt,
+      people,
+      expenses:forceAll?state.expenses:eligibleExpenses(),
+      deletedIds:syncState.deleted.map(x=>x.id),
+      deleted:syncState.deleted
+    };
+  }
+
+  function renderSyncStatus(){
+    const connected=!!syncState.url;
+    $('syncConnectionLabel').textContent=connected?'Connected Excel':'Not connected';
+    $('changeDestination').classList.toggle('hidden',!connected);
+    $('syncNow').classList.toggle('hidden',!connected);
+    if(!pendingDestinationUrl){
+      $('syncSetup').classList.toggle('hidden',connected);
+      $('cancelChangeDestination').classList.add('hidden');
+    }
+
+    const dot=$('syncDot');
+    dot.className='sync-dot';
+    if(connected){
+      if(syncState.lastError) dot.classList.add('error');
+      else if(syncState.pending) dot.classList.add('pending');
+      else dot.classList.add('connected');
+    }
+
+    if(!connected){
+      $('syncConnectionMeta').textContent='ยังไม่ได้เชื่อม Excel Online';
+      $('syncStatus').textContent='ข้อมูลจะถูกเก็บในเครื่องนี้อัตโนมัติก่อนเสมอ';
+      return;
+    }
+
+    $('syncConnectionMeta').textContent=`${maskedDestination(syncState.url)} · ${syncState.mode==='from-now'?'Start from now':'Sync all existing'}`;
+    if(syncInFlight) $('syncStatus').textContent='กำลัง Sync...';
+    else if(syncState.lastError) $('syncStatus').textContent=`รอ Sync ใหม่ · ${syncState.lastError}`;
+    else if(syncState.pending) $('syncStatus').textContent=navigator.onLine?'Waiting to sync':'Waiting for internet';
+    else if(syncState.lastSyncedAt) $('syncStatus').textContent=`Synced · ${fmtSyncTime(syncState.lastSyncedAt)}`;
+    else $('syncStatus').textContent='Connected · Auto Sync พร้อมใช้งาน';
+  }
+
+  function openDestinationEditor(){
+    pendingDestinationUrl='editing';
+    $('syncUrl').value='';
+    $('syncSetup').classList.remove('hidden');
+    $('cancelChangeDestination').classList.remove('hidden');
+    $('syncChoice').classList.add('hidden');
+    $('syncUrl').focus();
+  }
+
+  function closeDestinationEditor(){
+    pendingDestinationUrl='';
+    $('syncChoice').classList.add('hidden');
+    $('syncUrl').value=syncState.url;
+    renderSyncStatus();
+  }
+
+  function markSyncDirty(){
+    if(!syncState.url) return;
+    syncState.pending=true;
+    syncState.lastError='';
+    persist();
+    renderSyncStatus();
+    scheduleAutoSync();
+  }
+
+  function scheduleAutoSync(delay=650){
+    if(!syncState.url || !syncState.pending) return;
+    if(syncTimer) clearTimeout(syncTimer);
+    syncTimer=setTimeout(()=>performSync(),delay);
+  }
+
+  async function performSync({forceAll=false}={}){
+    if(!syncState.url || syncInFlight) return false;
+    if(!navigator.onLine){
+      syncState.pending=true;
+      persist();
+      renderSyncStatus();
+      return false;
+    }
+
+    syncInFlight=true;
+    syncState.lastError='';
+    renderSyncStatus();
+    try{
+      const res=await fetch(syncState.url,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(buildSyncPayload({forceAll}))
+      });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      syncState.pending=false;
+      syncState.lastSyncedAt=new Date().toISOString();
+      syncState.lastError='';
+      syncState.deleted=[];
+      persist();
+      return true;
+    }catch(err){
+      syncState.pending=true;
+      syncState.lastError=err?.message || 'Sync failed';
+      persist();
+      return false;
+    }finally{
+      syncInFlight=false;
+      renderSyncStatus();
+    }
+  }
+
+  function touchExpense(x){
+    if(x) x.updatedAt=new Date().toISOString();
   }
 
   function renderTripInfo(){
@@ -1374,6 +1676,7 @@
       if(i>=0) state.expenses[i]=rec;
     }else state.expenses.unshift(rec);
     resetForm(); render();
+    markSyncDirty();
   });
 
   $('amount').addEventListener('input',preview);
@@ -1637,6 +1940,7 @@
     state.tripName=name;
     renderTripInfo();
     persist();
+    markSyncDirty();
 
     $('tripInfoStatus').textContent='Saved';
     setTimeout(()=>{
@@ -1746,14 +2050,14 @@
     const n=$('newCategory').value.trim(); if(!n)return;
     if(state.categoryEditing!==null){
       const old=state.categories[state.categoryEditing]; state.categories[state.categoryEditing]=n;
-      state.expenses.forEach(x=>{if(x.category===old)x.category=n;}); state.categoryEditing=null; $('saveCategory').textContent='Add';
+      state.expenses.forEach(x=>{if(x.category===old){x.category=n;touchExpense(x);}}); state.categoryEditing=null; $('saveCategory').textContent='Add';
     }else if(!state.categories.some(x=>x.toLowerCase()===n.toLowerCase())) state.categories.push(n);
-    $('newCategory').value=''; renderCategories(n); render();
+    $('newCategory').value=''; renderCategories(n); render(); persist(); markSyncDirty();
   });
   $('categoryList').addEventListener('click',e=>{
     const eb=e.target.closest('[data-cat-edit]'),db=e.target.closest('[data-cat-del]');
     if(eb){const i=Number(eb.dataset.catEdit);state.categoryEditing=i;$('newCategory').value=state.categories[i];$('saveCategory').textContent='Save';}
-    if(db){const i=Number(db.dataset.catDel),old=state.categories[i]; if(state.expenses.some(x=>x.category===old)) return alert('ยังมีรายการที่ใช้ประเภทนี้อยู่ กรุณาแก้รายการก่อนลบ'); state.categories.splice(i,1);renderCategories();render();}
+    if(db){const i=Number(db.dataset.catDel),old=state.categories[i]; if(state.expenses.some(x=>x.category===old)) return alert('ยังมีรายการที่ใช้ประเภทนี้อยู่ กรุณาแก้รายการก่อนลบ'); state.categories.splice(i,1);renderCategories();render();persist();markSyncDirty();}
   });
 
   $('managePayment').addEventListener('click',()=>$('paymentManager').classList.toggle('hidden'));
@@ -1762,43 +2066,216 @@
     const n=$('newPayment').value.trim(); if(!n)return;
     if(state.paymentEditing!==null){
       const old=state.payments[state.paymentEditing]; state.payments[state.paymentEditing]=n;
-      state.expenses.forEach(x=>{if(x.payment===old)x.payment=n;}); state.paymentEditing=null; $('savePayment').textContent='Add';
+      state.expenses.forEach(x=>{if(x.payment===old){x.payment=n;touchExpense(x);}}); state.paymentEditing=null; $('savePayment').textContent='Add';
     }else if(!state.payments.some(x=>x.toLowerCase()===n.toLowerCase())) state.payments.push(n);
-    $('newPayment').value=''; renderPayments(n); render();
+    $('newPayment').value=''; renderPayments(n); render(); persist(); markSyncDirty();
   });
   $('paymentList').addEventListener('click',e=>{
     const eb=e.target.closest('[data-pay-edit]'),db=e.target.closest('[data-pay-del]');
     if(eb){const i=Number(eb.dataset.payEdit);state.paymentEditing=i;$('newPayment').value=state.payments[i];$('savePayment').textContent='Save';}
-    if(db){const i=Number(db.dataset.payDel),old=state.payments[i]; if(state.expenses.some(x=>x.payment===old)) return alert('ยังมีรายการที่ใช้ Payment Method นี้อยู่ กรุณาแก้รายการก่อนลบ'); state.payments.splice(i,1);renderPayments();render();}
+    if(db){const i=Number(db.dataset.payDel),old=state.payments[i]; if(state.expenses.some(x=>x.payment===old)) return alert('ยังมีรายการที่ใช้ Payment Method นี้อยู่ กรุณาแก้รายการก่อนลบ'); state.payments.splice(i,1);renderPayments();render();persist();markSyncDirty();}
   });
 
-  $('syncUrl').addEventListener('change',persist);
-  $('syncNow').addEventListener('click',async()=>{
+  $('changeDestination').addEventListener('click',openDestinationEditor);
+  $('cancelChangeDestination').addEventListener('click',closeDestinationEditor);
+
+  $('connectExcel').addEventListener('click',()=>{
     const url=$('syncUrl').value.trim();
     if(!url){$('syncStatus').textContent='กรุณาวาง Power Automate HTTP URL ก่อน';return;}
-    $('syncStatus').textContent='กำลัง Sync...';
-    try{
-      const payload={trip:'Beijing 22-28 Nov 2026',owner:ME,syncedAt:new Date().toISOString(),expenses:state.expenses};
-      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      $('syncStatus').textContent='Sync สำเร็จ';
+    try{new URL(url);}catch(_){$('syncStatus').textContent='URL ไม่ถูกต้อง';return;}
+
+    if(!syncState.url){
+      syncState.url=url;
+      syncState.mode='all';
+      syncState.cutoffAt='';
+      syncState.pending=true;
+      syncState.lastError='';
+      pendingDestinationUrl='';
       persist();
-    }catch(err){
-      $('syncStatus').textContent='Sync ไม่สำเร็จ: '+err.message+' · ข้อมูลในเครื่องยังอยู่ครบ';
+      $('syncSetup').classList.add('hidden');
+      renderSyncStatus();
+      performSync({forceAll:true});
+      return;
+    }
+
+    pendingDestinationUrl=url;
+    $('syncChoice').classList.remove('hidden');
+  });
+
+  $('syncAllExisting').addEventListener('click',()=>{
+    if(!pendingDestinationUrl || pendingDestinationUrl==='editing') return;
+    syncState.url=pendingDestinationUrl;
+    syncState.mode='all';
+    syncState.cutoffAt='';
+    syncState.pending=true;
+    syncState.lastSyncedAt='';
+    syncState.lastError='';
+    syncState.deleted=[];
+    pendingDestinationUrl='';
+    $('syncChoice').classList.add('hidden');
+    $('syncSetup').classList.add('hidden');
+    $('syncUrl').value=syncState.url;
+    persist();
+    renderSyncStatus();
+    performSync({forceAll:true});
+  });
+
+  $('syncFromNow').addEventListener('click',()=>{
+    if(!pendingDestinationUrl || pendingDestinationUrl==='editing') return;
+    syncState.url=pendingDestinationUrl;
+    syncState.mode='from-now';
+    syncState.cutoffAt=new Date().toISOString();
+    syncState.pending=false;
+    syncState.lastSyncedAt='';
+    syncState.lastError='';
+    syncState.deleted=[];
+    pendingDestinationUrl='';
+    $('syncChoice').classList.add('hidden');
+    $('syncSetup').classList.add('hidden');
+    $('syncUrl').value=syncState.url;
+    persist();
+    renderSyncStatus();
+  });
+
+  $('syncNow').addEventListener('click',()=>{
+    if(!syncState.url) return;
+    syncState.pending=true;
+    persist();
+    renderSyncStatus();
+    performSync();
+  });
+
+  window.addEventListener('online',()=>{
+    renderSyncStatus();
+    if(syncState.url && syncState.pending) scheduleAutoSync(250);
+  });
+  window.addEventListener('offline',renderSyncStatus);
+
+  $('exportJson').addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify({trip:state.tripName,owner:ME,people,expenses:state.expenses},null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='trip-expenses.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  let calcExpr='';
+
+  function renderCalcDisplay(){
+    $('calcDisplay').value=calcExpr || '0';
+  }
+
+  function safeCalc(expr){
+    if(!expr || !/^[0-9+\-*/().\s]+$/.test(expr)) throw new Error('Invalid expression');
+    const value=Function('"use strict";return ('+expr+')')();
+    if(!Number.isFinite(value)) throw new Error('Invalid result');
+    return value;
+  }
+
+  function closeCalculator(){
+    $('calcModal').classList.add('hidden');
+    document.body.style.overflow='';
+  }
+
+  $('openCalculator').addEventListener('click',()=>{
+    const current=$('amount').value.trim();
+    calcExpr=current && !Number.isNaN(Number(current)) ? current : '';
+    renderCalcDisplay();
+    $('calcModal').classList.remove('hidden');
+    document.body.style.overflow='hidden';
+  });
+
+  $('calcModal').addEventListener('click',(e)=>{
+    const btn=e.target.closest('[data-calc]');
+    if(!btn) return;
+    const key=btn.dataset.calc;
+
+    if(key==='C'){
+      calcExpr='';
+    }else if(key==='⌫'){
+      calcExpr=calcExpr.slice(0,-1);
+    }else if(key==='='){
+      try{
+        calcExpr=String(safeCalc(calcExpr));
+      }catch(_){
+        calcExpr='';
+        $('calcDisplay').value='Error';
+        return;
+      }
+    }else{
+      calcExpr+=key;
+    }
+    renderCalcDisplay();
+  });
+
+  $('calcCancel').addEventListener('click',closeCalculator);
+
+  $('calcDone').addEventListener('click',()=>{
+    try{
+      const value=calcExpr ? safeCalc(calcExpr) : 0;
+      const rounded=Math.round((value+Number.EPSILON)*100)/100;
+      $('amount').value=String(rounded);
+      $('amount').dispatchEvent(new Event('input',{bubbles:true}));
+      preview();
+      closeCalculator();
+    }catch(_){
+      $('calcDisplay').value='Error';
     }
   });
 
-  $('exportJson').addEventListener('click',()=>{
-    const blob=new Blob([JSON.stringify({trip:'Beijing 22-28 Nov 2026',expenses:state.expenses},null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='beijing-expenses.json';a.click();URL.revokeObjectURL(a.href);
-  });
-
-  load(); renderTripInfo(); renderCategories(); renderPayments(); renderCurrencies('CNY'); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); fetchFxForDate({force:true});
+  load(); renderTripInfo(); renderCategories(); renderPayments(); renderCurrencies('CNY'); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); renderSyncStatus(); fetchFxForDate({force:true});
+  if(syncState.url && syncState.pending) scheduleAutoSync(900);
 
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
   }
 })();
 </script>
+
+  <div id="calcModal" class="calc-modal hidden" role="dialog" aria-modal="true" aria-labelledby="calcTitle">
+    <div class="calc-sheet">
+      <div class="calc-topbar">
+        <div class="calc-topbar-left">
+          <button id="calcCancel" class="calc-pill" type="button">Cancel</button>
+        </div>
+        <div id="calcTitle" class="calc-topbar-title">Calculator</div>
+        <div class="calc-topbar-right">
+          <button id="calcDone" class="calc-pill" type="button">Done</button>
+        </div>
+      </div>
+
+      <div class="calc-screen">
+        <input id="calcDisplay" class="calc-display" type="text" value="0" readonly>
+      </div>
+
+      <div class="calc-grid">
+        <button class="calc-key" type="button" data-calc="C">C</button>
+        <button class="calc-key" type="button" data-calc="/">÷</button>
+        <button class="calc-key" type="button" data-calc="*">×</button>
+        <button class="calc-key" type="button" data-calc="⌫">⌫</button>
+
+        <button class="calc-key" type="button" data-calc="7">7</button>
+        <button class="calc-key" type="button" data-calc="8">8</button>
+        <button class="calc-key" type="button" data-calc="9">9</button>
+        <button class="calc-key primary" type="button" data-calc="-">−</button>
+
+        <button class="calc-key" type="button" data-calc="4">4</button>
+        <button class="calc-key" type="button" data-calc="5">5</button>
+        <button class="calc-key" type="button" data-calc="6">6</button>
+        <button class="calc-key primary" type="button" data-calc="+">+</button>
+
+        <button class="calc-key" type="button" data-calc="1">1</button>
+        <button class="calc-key" type="button" data-calc="2">2</button>
+        <button class="calc-key" type="button" data-calc="3">3</button>
+        <button class="calc-key primary equal" type="button" data-calc="=">=</button>
+
+        <button class="calc-key" type="button" data-calc="0">0</button>
+        <button class="calc-key" type="button" data-calc=".">.</button>
+        <button class="calc-key" type="button" data-calc="(">(</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: calculator-popup-v27 -->
+  <!-- app-version: calculator-layout-v29 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -506,59 +506,49 @@
     .calc-modal.hidden{display:none}
     .calc-sheet{
       width:100%;max-width:560px;min-height:100%;
-      box-sizing:border-box;
-      display:flex;flex-direction:column;
-      padding:calc(env(safe-area-inset-top, 0px) + 16px) 18px calc(env(safe-area-inset-bottom, 0px) + 18px);
+      box-sizing:border-box;display:flex;flex-direction:column;
+      padding:calc(env(safe-area-inset-top,0px) + 16px) 18px calc(env(safe-area-inset-bottom,0px) + 18px);
     }
     .calc-topbar{
       display:grid;grid-template-columns:1fr auto 1fr;
       align-items:center;gap:12px;
     }
-    .calc-topbar-title{
-      font-size:20px;font-weight:700;text-align:center;
-    }
+    .calc-topbar-title{font-size:20px;font-weight:700;text-align:center}
     .calc-topbar-left{text-align:left}
     .calc-topbar-right{text-align:right}
     .calc-pill{
-      border:0;background:#fff;border-radius:999px;
-      padding:10px 16px;font:inherit;font-size:16px;
+      border:0;background:#fff;border-radius:999px;padding:10px 16px;
+      font:inherit;font-size:16px;cursor:pointer;
       box-shadow:0 8px 22px rgba(0,0,0,.06);
-      cursor:pointer;
     }
     .calc-screen{
-      min-height:230px;
-      display:flex;align-items:flex-end;justify-content:flex-end;
-      padding:18px 8px 24px;
-      box-sizing:border-box;
+      min-height:230px;display:flex;align-items:flex-end;justify-content:flex-end;
+      padding:18px 8px 24px;box-sizing:border-box;
     }
     .calc-display{
-      width:100%;border:0;background:transparent;
-      font-size:66px;line-height:1;font-weight:500;
-      text-align:right;color:#111;outline:none;padding:0;margin:0;
+      width:100%;border:0;background:transparent;font-size:66px;line-height:1;
+      font-weight:500;text-align:right;color:#111;outline:none;padding:0;margin:0;
     }
     .calc-grid{
       display:grid;grid-template-columns:repeat(4,1fr);
-      gap:1px;background:#e7e7e9;
-      border-radius:18px;overflow:hidden;
+      gap:8px;background:transparent;border-radius:18px;
     }
     .calc-key{
-      border:0;background:#fff;min-height:86px;
-      font-size:28px;cursor:pointer;
+      border:1px solid var(--border);background:#fff;aspect-ratio:1/1;
+      border-radius:50%;font-size:28px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      min-height:0;
     }
     .calc-key:active{background:#efeff1}
-    .calc-key.primary{font-weight:700}
-    .calc-key.equal{
-      grid-column:4;
-      grid-row:4 / span 2;
-      min-height:173px;
-    }
+    .calc-key.op{font-weight:700}
     @media(max-width:420px){
       .calc-sheet{padding-left:14px;padding-right:14px}
       .calc-screen{min-height:205px}
       .calc-display{font-size:58px}
-      .calc-key{min-height:78px;font-size:26px}
-      .calc-key.equal{min-height:157px}
+      .calc-key{font-size:26px}
     }
+
+    .currency-standalone{margin-top:0}
 
 </style>
 </head>
@@ -619,27 +609,6 @@
         </div>
       </div>
 
-      <div class="row2">
-        <div class="field">
-        <label for="currency">สกุลเงิน</label>
-        <div class="minimal-select-wrap"><select id="currency"></select></div>
-        <div class="mini-manage-row"><button id="manageCurrency" class="mini-manage" type="button">Manage</button></div>
-      </div>
-
-      <div id="currencyManager" class="panel hidden">
-        <div class="manager-row" style="grid-template-columns:minmax(0,1fr) auto">
-          <div>
-            <strong>THB ฿</strong>
-            <div class="muted">Base currency · FX = 1 · ลบไม่ได้</div>
-          </div>
-        </div>
-        <div id="currencyList"></div>
-        <div class="inline" style="margin-top:8px">
-          <input id="newCurrencyCode" maxlength="3" autocapitalize="characters" placeholder="เช่น USD">
-          <input id="newCurrencySymbol" maxlength="4" placeholder="สัญลักษณ์ เช่น $">
-          <button id="addCurrency" class="btn btn-small" type="button">Add</button>
-        </div>
-      </div>
         <div class="field"><label for="amount">ยอดทั้งหมด</label><div class="amount-wrap"><input id="amount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required>
       <button id="openCalculator" class="calc-icon-btn" type="button" aria-label="Calculator" title="Calculator">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -658,6 +627,28 @@
       </button>
     </div>
 </div>
+      </div>
+
+      <div class="field currency-standalone">
+        <label for="currency">สกุลเงิน</label>
+        <div class="minimal-select-wrap"><select id="currency"></select></div>
+        <div class="mini-manage-row"><button id="manageCurrency" class="mini-manage" type="button">Manage</button></div>
+      </div>
+
+      <div id="currencyManager" class="panel hidden">
+        <div class="manager-row" style="grid-template-columns:minmax(0,1fr) auto">
+          <div>
+            <strong>THB ฿</strong>
+            <div class="muted">Base currency · FX = 1 · ลบไม่ได้</div>
+          </div>
+        </div>
+        <div id="currencyList"></div>
+        <div class="inline" style="margin-top:8px">
+          <input id="newCurrencyCode" maxlength="3" autocapitalize="characters" placeholder="เช่น USD">
+          <input id="newCurrencySymbol" maxlength="4" placeholder="สัญลักษณ์ เช่น $">
+          <button id="addCurrency" class="btn btn-small" type="button">Add</button>
+        </div>
+
       </div>
 
       <div class="row2">
@@ -2178,6 +2169,23 @@
     document.body.style.overflow='';
   }
 
+  function applyPercent(){
+    if(!calcExpr) return;
+    const m=calcExpr.match(/(-?\d*\.?\d+)$/);
+    if(!m) return;
+    const raw=m[1];
+    calcExpr=calcExpr.slice(0,-raw.length)+String(Number(raw)/100);
+  }
+
+  function toggleSign(){
+    if(!calcExpr) return;
+    const m=calcExpr.match(/(-?\d*\.?\d+)$/);
+    if(!m) return;
+    const raw=m[1];
+    const signed=raw.startsWith('-') ? raw.slice(1) : '-'+raw;
+    calcExpr=calcExpr.slice(0,-raw.length)+signed;
+  }
+
   $('openCalculator').addEventListener('click',()=>{
     const current=$('amount').value.trim();
     calcExpr=current && !Number.isNaN(Number(current)) ? current : '';
@@ -2191,10 +2199,14 @@
     if(!btn) return;
     const key=btn.dataset.calc;
 
-    if(key==='C'){
+    if(key==='AC'){
       calcExpr='';
     }else if(key==='⌫'){
       calcExpr=calcExpr.slice(0,-1);
+    }else if(key==='%'){
+      applyPercent();
+    }else if(key==='+/-'){
+      toggleSign();
     }else if(key==='='){
       try{
         calcExpr=String(safeCalc(calcExpr));
@@ -2250,29 +2262,30 @@
       </div>
 
       <div class="calc-grid">
-        <button class="calc-key" type="button" data-calc="C">C</button>
-        <button class="calc-key" type="button" data-calc="/">÷</button>
-        <button class="calc-key" type="button" data-calc="*">×</button>
         <button class="calc-key" type="button" data-calc="⌫">⌫</button>
+        <button class="calc-key" type="button" data-calc="AC">AC</button>
+        <button class="calc-key" type="button" data-calc="%">%</button>
+        <button class="calc-key op" type="button" data-calc="/">÷</button>
 
         <button class="calc-key" type="button" data-calc="7">7</button>
         <button class="calc-key" type="button" data-calc="8">8</button>
         <button class="calc-key" type="button" data-calc="9">9</button>
-        <button class="calc-key primary" type="button" data-calc="-">−</button>
+        <button class="calc-key op" type="button" data-calc="*">×</button>
 
         <button class="calc-key" type="button" data-calc="4">4</button>
         <button class="calc-key" type="button" data-calc="5">5</button>
         <button class="calc-key" type="button" data-calc="6">6</button>
-        <button class="calc-key primary" type="button" data-calc="+">+</button>
+        <button class="calc-key op" type="button" data-calc="-">−</button>
 
         <button class="calc-key" type="button" data-calc="1">1</button>
         <button class="calc-key" type="button" data-calc="2">2</button>
         <button class="calc-key" type="button" data-calc="3">3</button>
-        <button class="calc-key primary equal" type="button" data-calc="=">=</button>
+        <button class="calc-key op" type="button" data-calc="+">+</button>
 
+        <button class="calc-key" type="button" data-calc="+/-">+/−</button>
         <button class="calc-key" type="button" data-calc="0">0</button>
         <button class="calc-key" type="button" data-calc=".">.</button>
-        <button class="calc-key" type="button" data-calc="(">(</button>
+        <button class="calc-key op" type="button" data-calc="=">=</button>
       </div>
     </div>
   </div>

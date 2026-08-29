@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: stability-fix-v30 -->
+  <!-- app-version: backup-history-5-v33 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -544,6 +544,12 @@
 
     .currency-standalone{margin-top:0}
 
+
+    .backup-history{display:grid;gap:8px;margin-top:10px}
+    .backup-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
+    .backup-time{font-size:13px;font-weight:700}.backup-count{font-size:12px;color:var(--muted);margin-top:2px}
+    .backup-restore{border:1px solid var(--border);background:#fff;border-radius:999px;padding:7px 11px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+    .backup-empty{font-size:12px;color:var(--muted);padding:8px 0}
 </style>
 </head>
 <body>
@@ -804,6 +810,17 @@
     </details>
 
     <details class="settings-subset">
+      <summary>Backup &amp; Restore</summary>
+      <div class="settings-subset-body">
+        <section class="card">
+          <h2>Backup History</h2>
+          <div class="muted">Auto Backup 5 เวอร์ชันล่าสุด ก่อนข้อมูลถูกเปลี่ยน</div>
+          <div id="backupHistory" class="backup-history"></div>
+        </section>
+      </div>
+    </details>
+
+    <details class="settings-subset">
       <summary>Online Sync</summary>
       <div class="settings-subset-body">
         <section class="card">
@@ -902,6 +919,11 @@
   let ME = 'Gift';
   const STORAGE_KEY = 'beijing-expense-2026-v1';
   const SETTINGS_KEY = 'beijing-expense-settings-v1';
+  const STORAGE_BACKUP_KEY = 'beijing-expense-2026-v1-backup';
+  const SETTINGS_BACKUP_KEY = 'beijing-expense-settings-v1-backup';
+  const HISTORY_KEY = 'beijing-expense-2026-history-v1';
+  const HISTORY_LIMIT = 5;
+  let storageLoadedSafely = false;
   const colors = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)'];
 
   const collapsedReceivables = new Set();
@@ -1196,8 +1218,15 @@
 
   function load(){
     try{
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+      const rawSaved = localStorage.getItem(STORAGE_KEY);
+      const rawSettings = localStorage.getItem(SETTINGS_KEY);
+      const saved = rawSaved ? JSON.parse(rawSaved) : null;
+      const settings = rawSettings ? JSON.parse(rawSettings) : null;
+
+      if(saved && !Array.isArray(saved.expenses)){
+        throw new Error('Expense storage format is invalid');
+      }
+
       if(saved && Array.isArray(saved.expenses)){
         state.expenses = saved.expenses.map(x=>{
           const split = Math.max(1, Number(x.split)||1);
@@ -1210,7 +1239,6 @@
           const settledByPerson=(x.settledByPerson&&typeof x.settledByPerson==='object')
             ? {...x.settledByPerson}
             : {};
-          // Backward compatibility with the original Gift-centric repayment fields.
           if(x.repaid===true && participants.includes('Gift') && !payers.includes('Gift')){
             settledByPerson['Gift']=true;
           }
@@ -1225,6 +1253,7 @@
             repaidToMe:(x.repaidToMe&&typeof x.repaidToMe==='object')?x.repaidToMe:{}};
         });
       }
+
       if(settings){
         if(Array.isArray(settings.people) && settings.people.length){
           people=settings.people
@@ -1238,10 +1267,10 @@
         }
         if(typeof settings.tripName==='string' && settings.tripName.trim()) state.tripName=settings.tripName.trim();
         if(typeof settings.tripDateLabel==='string' && settings.tripDateLabel.trim() && !state.tripName.includes(settings.tripDateLabel.trim())){
-          state.tripName = [state.tripName, settings.tripDateLabel.trim()].filter(Boolean).join(' · ');
+          state.tripName=[state.tripName,settings.tripDateLabel.trim()].filter(Boolean).join(' · ');
         }
-        if(Array.isArray(settings.categories) && settings.categories.length) state.categories = settings.categories;
-        if(Array.isArray(settings.payments) && settings.payments.length) state.payments = settings.payments;
+        if(Array.isArray(settings.categories) && settings.categories.length) state.categories=settings.categories;
+        if(Array.isArray(settings.payments) && settings.payments.length) state.payments=settings.payments;
         if(Array.isArray(settings.currencies) && settings.currencies.length){
           state.currencies=settings.currencies
             .filter(c=>c&&c.code)
@@ -1256,21 +1285,84 @@
           }
         }
         if(settings.syncUrl){
-          syncState.url = String(settings.syncUrl).trim();
-          $('syncUrl').value = syncState.url;
+          syncState.url=String(settings.syncUrl).trim();
+          $('syncUrl').value=syncState.url;
         }
-        if(settings.syncMode==='from-now' || settings.syncMode==='all') syncState.mode=settings.syncMode;
+        if(settings.syncMode==='from-now'||settings.syncMode==='all') syncState.mode=settings.syncMode;
         if(typeof settings.syncCutoffAt==='string') syncState.cutoffAt=settings.syncCutoffAt;
         if(typeof settings.syncPending==='boolean') syncState.pending=settings.syncPending;
         if(typeof settings.lastSyncedAt==='string') syncState.lastSyncedAt=settings.lastSyncedAt;
         if(typeof settings.lastSyncError==='string') syncState.lastError=settings.lastSyncError;
         if(Array.isArray(settings.syncDeleted)) syncState.deleted=settings.syncDeleted;
       }
-    }catch(e){}
+
+      storageLoadedSafely=true;
+    }catch(e){
+      storageLoadedSafely=false;
+      console.error('Storage load failed; existing localStorage will not be overwritten.',e);
+    }
   }
+
+  function getBackupHistory(){
+    try{const h=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(h)?h:[];}catch(_){return [];}
+  }
+  function snapshotCurrent(reason='Auto Backup'){
+    if(!storageLoadedSafely)return;
+    try{
+      const er=localStorage.getItem(STORAGE_KEY),sr=localStorage.getItem(SETTINGS_KEY);
+      if(!er&&!sr)return;
+      const eo=er?JSON.parse(er):{expenses:[]},so=sr?JSON.parse(sr):{};
+      const expenses=Array.isArray(eo?.expenses)?eo.expenses:[];
+      const h=getBackupHistory();
+      const snap={id:Date.now()+'-'+Math.random().toString(36).slice(2,7),at:new Date().toISOString(),reason,expenseCount:expenses.length,expenses:eo,settings:so};
+      const last=h[0],same=last&&JSON.stringify(last.expenses)===JSON.stringify(snap.expenses)&&JSON.stringify(last.settings)===JSON.stringify(snap.settings);
+      if(!same){h.unshift(snap);localStorage.setItem(HISTORY_KEY,JSON.stringify(h.slice(0,HISTORY_LIMIT)));}
+    }catch(e){console.warn('Backup snapshot failed',e);}
+  }
+  function fmtBackupTime(iso){
+    try{return new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(iso));}catch(_){return iso||'';}
+  }
+  function renderBackupHistory(){
+    const box=$('backupHistory');if(!box)return;const h=getBackupHistory();
+    if(!h.length){box.innerHTML='<div class="backup-empty">ยังไม่มี Backup — ระบบจะสร้างให้อัตโนมัติก่อนการเปลี่ยนข้อมูลครั้งถัดไป</div>';return;}
+    box.innerHTML=h.map(b=>`<div class="backup-item"><div><div class="backup-time">${escapeHtml(fmtBackupTime(b.at))}</div><div class="backup-count">${Number(b.expenseCount)||0} expenses · ${escapeHtml(b.reason||'Backup')}</div></div><button class="backup-restore" type="button" data-restore-backup="${escapeHtml(b.id)}">Restore</button></div>`).join('');
+  }
+  function restoreBackup(id){
+    const b=getBackupHistory().find(x=>x.id===id);if(!b)return;
+    if(!confirm(`Restore backup นี้ (${Number(b.expenseCount)||0} expenses)?\nข้อมูลปัจจุบันจะถูก Backup ไว้ก่อน Restore`))return;
+    snapshotCurrent('Before restore');
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(b.expenses||{expenses:[]}));localStorage.setItem(SETTINGS_KEY,JSON.stringify(b.settings||{}));location.reload();}
+    catch(e){alert('Restore ไม่สำเร็จ: '+e.message);}
+  }
+
   function persist(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({expenses:state.expenses}));
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+    if(!storageLoadedSafely){
+      console.warn('Persist blocked because storage did not load safely.');
+      return;
+    }
+
+    snapshotCurrent('Auto Backup');
+    const existingExpenses=localStorage.getItem(STORAGE_KEY);
+    const existingSettings=localStorage.getItem(SETTINGS_KEY);
+
+    // Keep a last-known-good snapshot before every write.
+    if(existingExpenses){
+      try{
+        const parsed=JSON.parse(existingExpenses);
+        if(parsed && Array.isArray(parsed.expenses)){
+          localStorage.setItem(STORAGE_BACKUP_KEY,existingExpenses);
+        }
+      }catch(_){}
+    }
+    if(existingSettings){
+      try{
+        JSON.parse(existingSettings);
+        localStorage.setItem(SETTINGS_BACKUP_KEY,existingSettings);
+      }catch(_){}
+    }
+
+    localStorage.setItem(STORAGE_KEY,JSON.stringify({expenses:state.expenses}));
+    localStorage.setItem(SETTINGS_KEY,JSON.stringify({
       tripName:state.tripName,categories:state.categories,payments:state.payments,currencies:state.currencies,people,ownerId:ME,
       syncUrl:syncState.url,syncMode:syncState.mode,syncCutoffAt:syncState.cutoffAt,syncPending:syncState.pending,
       lastSyncedAt:syncState.lastSyncedAt,lastSyncError:syncState.lastError,syncDeleted:syncState.deleted
@@ -1665,7 +1757,6 @@
     }).join('') : '<div class="muted" style="text-align:center;padding:24px 0">ยังไม่มีรายจ่าย</div>';
 
     renderPie(net);
-    persist();
   }
   function resetForm(){
     state.editingId=null;
@@ -2261,7 +2352,26 @@
     }
   });
 
-  load(); renderTripInfo(); renderCategories(); renderPayments(); renderCurrencies('CNY'); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); renderSyncStatus(); fetchFxForDate({force:true});
+  function tryRestoreBackupIfPrimaryEmpty(){
+    if(!storageLoadedSafely) return;
+    try{
+      const primary=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
+      const backup=JSON.parse(localStorage.getItem(STORAGE_BACKUP_KEY)||'null');
+      const primaryCount=primary&&Array.isArray(primary.expenses)?primary.expenses.length:0;
+      const backupCount=backup&&Array.isArray(backup.expenses)?backup.expenses.length:0;
+      if(primaryCount===0 && backupCount>0){
+        state.expenses=backup.expenses;
+        localStorage.setItem(STORAGE_KEY,JSON.stringify({expenses:state.expenses}));
+      }
+    }catch(_){}
+  }
+
+  document.addEventListener('click',(e)=>{
+    const btn=e.target.closest('[data-restore-backup]');
+    if(btn)restoreBackup(btn.dataset.restoreBackup);
+  });
+
+  load(); tryRestoreBackupIfPrimaryEmpty(); renderTripInfo(); renderBackupHistory(); renderCategories(); renderPayments(); renderCurrencies('CNY'); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); renderSyncStatus(); fetchFxForDate({force:true});
   if(syncState.url && syncState.pending) scheduleAutoSync(900);
 
   if('serviceWorker' in navigator){

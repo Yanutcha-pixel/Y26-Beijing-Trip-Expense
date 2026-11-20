@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: verified-storage-v34 -->
+  <!-- app-version: private-sheets-backup-v35 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -826,6 +826,16 @@
       <summary>Online Sync</summary>
       <div class="settings-subset-body">
         <section class="card">
+          <h2>Google Sheets</h2>
+          <p class="muted">ส่งผ่านบัญชี Google ของคุณ · ยืนยันในหน้าถัดไป</p>
+          <label for="sheetsWebUrl">Apps Script Web app URL</label>
+          <input id="sheetsWebUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec">
+          <div class="toolbar">
+            <button id="sendSheetsTest" class="btn" type="button">ส่งรายการทดสอบ</button>
+            <button id="sendSheetsBackup" class="btn" type="button">สำรองรายจ่ายไป Sheets</button>
+          </div>
+          <div id="sheetsWebStatus" class="sync-note" role="status"></div>
+          <hr style="margin:20px 0;border:0;border-top:1px solid var(--border)">
           <h2>Excel Online Sync</h2>
           <div class="muted">Optional · เชื่อม Excel ของเครื่องนี้ผ่าน Power Automate</div>
 
@@ -2343,6 +2353,36 @@
   }
   $('exportJson').addEventListener('click',exportExpenses);
   $('exportBackup').addEventListener('click',exportExpenses);
+
+  const SHEETS_URL_KEY='trip-expense-private-sheets-url-v1';
+  try { $('sheetsWebUrl').value=localStorage.getItem(SHEETS_URL_KEY)||''; } catch(_){}
+  function sendPrivateSheets(mode){
+    const status=$('sheetsWebStatus');
+    const url=$('sheetsWebUrl').value.trim();
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url)){
+      status.textContent='ใส่ Web app URL จาก Google ที่ลงท้าย /exec ก่อนค่ะ';return;
+    }
+    if(mode==='backup' && (!storageLoadedSafely || !state.expenses.length)){
+      status.textContent='ไม่พบรายจ่ายที่พร้อมสำรอง';return;
+    }
+    const body=JSON.stringify(mode==='test'?{mode:'test'}:{
+      mode:'backup',batch:crypto.randomUUID(),trip:state.tripName,owner:personLabel(ME),expenses:state.expenses
+    });
+    if(body.length>200000){status.textContent='ข้อมูลใหญ่เกินไปสำหรับการส่งครั้งเดียว · ใช้ Export JSON';return;}
+    try {localStorage.setItem(SHEETS_URL_KEY,url);} catch(_){}
+    const form=document.createElement('form');
+    form.method='POST';form.action=url;form.target='_blank';form.rel='noopener';form.hidden=true;
+    const field=document.createElement('input');
+    field.type='hidden';field.name='tripPayload';field.value=body;
+    form.appendChild(field);document.body.appendChild(form);
+    try{
+      form.submit();
+      status.textContent='เปิดหน้าต่าง Google เพื่อยืนยัน · ยังไม่ได้บันทึกลงชีต';
+    }catch(_){status.textContent='เปิดหน้าต่าง Google ไม่สำเร็จ';}
+    finally{form.remove();}
+  }
+  $('sendSheetsTest').addEventListener('click',()=>sendPrivateSheets('test'));
+  $('sendSheetsBackup').addEventListener('click',()=>sendPrivateSheets('backup'));
 
   let calcExpr='';
 

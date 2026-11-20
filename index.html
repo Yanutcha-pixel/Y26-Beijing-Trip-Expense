@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="manifest" href="manifest.webmanifest">
   <title>Beijing Trip Expense</title>
-  <!-- app-version: backup-history-5-v33 -->
+  <!-- app-version: verified-storage-v34 -->
   <style>
     :root{
       --bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#707784;--border:#e5e7eb;
@@ -558,6 +558,7 @@
     <div class="eyebrow">Net Expense ของเรา</div>
     <div id="netExpense" class="hero-value">฿0</div>
     <div id="netExpenseCny" class="hero-sub">≈ ¥0</div>
+    <div id="storageStatus" class="sync-note" role="status" aria-live="polite"></div>
     <div class="summary-stack">
       <div class="stat stat-wide">
         <div class="eyebrow">ยอดใช้จ่ายรวม</div>
@@ -654,7 +655,7 @@
       <div class="row2">
         <div class="field">
           <label for="fx">FX <span class="muted">· 1 CNY = ? THB</span></label>
-          <input id="fx" type="number" min="0.01" step="0.0001" inputmode="decimal" value="4.60">
+          <input id="fx" type="number" min="0.00000001" step="any" inputmode="decimal" placeholder="ระบุเรท">
           <div class="fx-meta">
             <span id="fxStatus" class="muted">กำลังโหลดอัตราแลกเปลี่ยน...</span>
             <button id="refreshFx" type="button" class="fx-refresh">Auto FX</button>
@@ -816,6 +817,7 @@
           <h2>Backup History</h2>
           <div class="muted">Auto Backup 5 เวอร์ชันล่าสุด ก่อนข้อมูลถูกเปลี่ยน</div>
           <div id="backupHistory" class="backup-history"></div>
+          <button id="exportBackup" class="btn" type="button" style="margin-top:10px">Export JSON</button>
         </section>
       </div>
     </details>
@@ -924,6 +926,19 @@
   const HISTORY_KEY = 'beijing-expense-2026-history-v1';
   const HISTORY_LIMIT = 5;
   let storageLoadedSafely = false;
+  let loadedExpensesRaw=null, loadedSettingsRaw=null;
+  function storageStatus(message){ $('storageStatus').textContent=message; }
+  function readObject(raw){
+    if(raw===null) return null;
+    const data=JSON.parse(raw);
+    if(!data || typeof data!=='object' || Array.isArray(data)) throw new Error('Invalid storage');
+    return data;
+  }
+  function readExpenses(raw){
+    const data=readObject(raw);
+    if(data && (!Array.isArray(data.expenses) || data.expenses.some(x=>!x || typeof x!=='object' || Array.isArray(x)))) throw new Error('Invalid expenses');
+    return data;
+  }
   const colors = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)'];
 
   const collapsedReceivables = new Set();
@@ -1093,12 +1108,14 @@
     return c ? `${c.code} ${c.symbol||''}`.trim() : code;
   }
 
-  function renderCurrencies(selected){
+  function renderCurrencies(selected, keepArchived=false){
     const cur = selected || $('currency').value || 'CNY';
-    $('currency').innerHTML = activeCurrencies()
+    const options=activeCurrencies();
+    if(keepArchived && /^[A-Z]{3}$/.test(cur) && !options.some(c=>c.code===cur)) options.push({code:cur});
+    $('currency').innerHTML = options
       .map(c=>`<option value="${esc(c.code)}">${esc(currencyLabel(c.code))}</option>`)
       .join('');
-    $('currency').value = activeCurrencies().some(c=>c.code===cur) ? cur : (activeCurrencies()[0]?.code || 'THB');
+    $('currency').value = options.some(c=>c.code===cur) ? cur : (activeCurrencies()[0]?.code || 'THB');
     updateFxLabel();
     renderCurrencyManager();
   }
@@ -1132,7 +1149,7 @@
   }
 
   function formatFxRate(rate){
-    return Number(rate).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
+    return Number(rate).toFixed(8).replace(/0+$/,'').replace(/\.$/,'');
   }
 
   async function fetchFxForDate({force=false}={}){
@@ -1154,7 +1171,9 @@
       return;
     }
 
+    $('fx').value='';
     setFxStatus('กำลังโหลด FX...');
+    preview();
 
     const today=todayLocalISO();
     const isFuture=date>today;
@@ -1165,7 +1184,7 @@
       : `https://api.frankfurter.dev/v1/${date}?base=${encodeURIComponent(currency)}&symbols=THB`;
 
     try{
-      const resp=await fetch(url,{cache:'no-store'});
+      const resp=await fetch(url,{cache:'no-store',signal:typeof AbortSignal.timeout==='function'?AbortSignal.timeout(6000):undefined});
       if(!resp.ok) throw new Error('FX request failed');
       const data=await resp.json();
       const rate=Number(data?.rates?.THB);
@@ -1190,7 +1209,7 @@
 
       // If historical lookup fails, fall back to latest.
       try{
-        const latestResp=await fetch(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(currency)}&symbols=THB`,{cache:'no-store'});
+        const latestResp=await fetch(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(currency)}&symbols=THB`,{cache:'no-store',signal:typeof AbortSignal.timeout==='function'?AbortSignal.timeout(6000):undefined});
         if(!latestResp.ok) throw new Error('Latest FX failed');
         const latest=await latestResp.json();
         const rate=Number(latest?.rates?.THB);
@@ -1203,7 +1222,7 @@
         preview();
       }catch(_){
         if(requestId!==fxRequestSeq) return;
-        setFxStatus('ดึง FX ไม่สำเร็จ · ใช้ค่าที่กรอกไว้ได้');
+        setFxStatus('ดึง FX ไม่สำเร็จ · กรอกเรทเองได้');
       }
     }
   }
@@ -1217,16 +1236,12 @@
   }
 
   function load(){
+    let saved=null, settings=null, failed=false;
+    try{ loadedExpensesRaw=localStorage.getItem(STORAGE_KEY); saved=readExpenses(loadedExpensesRaw); }
+    catch(_){ failed=true; }
+    try{ loadedSettingsRaw=localStorage.getItem(SETTINGS_KEY); settings=readObject(loadedSettingsRaw); }
+    catch(_){ failed=true; }
     try{
-      const rawSaved = localStorage.getItem(STORAGE_KEY);
-      const rawSettings = localStorage.getItem(SETTINGS_KEY);
-      const saved = rawSaved ? JSON.parse(rawSaved) : null;
-      const settings = rawSettings ? JSON.parse(rawSettings) : null;
-
-      if(saved && !Array.isArray(saved.expenses)){
-        throw new Error('Expense storage format is invalid');
-      }
-
       if(saved && Array.isArray(saved.expenses)){
         state.expenses = saved.expenses.map(x=>{
           const split = Math.max(1, Number(x.split)||1);
@@ -1239,15 +1254,15 @@
           const settledByPerson=(x.settledByPerson&&typeof x.settledByPerson==='object')
             ? {...x.settledByPerson}
             : {};
-          if(x.repaid===true && participants.includes('Gift') && !payers.includes('Gift')){
+          if(!Object.prototype.hasOwnProperty.call(settledByPerson,'Gift') && x.repaid===true && participants.includes('Gift') && !payers.includes('Gift')){
             settledByPerson['Gift']=true;
           }
           if(x.repaidToMe && typeof x.repaidToMe==='object' && payers.includes('Gift')){
             Object.entries(x.repaidToMe).forEach(([person,paid])=>{
-              if(paid) settledByPerson[person]=true;
+              if(paid && !Object.prototype.hasOwnProperty.call(settledByPerson,person)) settledByPerson[person]=true;
             });
           }
-          return {...x, split, participants, payers,
+          return {...x, date:typeof x.date==='string'?x.date:'', split, participants, payers,
             payer:payers[0] || x.payer || activePeopleIds()[0] || 'Gift',
             settledByPerson,
             repaidToMe:(x.repaidToMe&&typeof x.repaidToMe==='object')?x.repaidToMe:{}};
@@ -1296,79 +1311,109 @@
         if(Array.isArray(settings.syncDeleted)) syncState.deleted=settings.syncDeleted;
       }
 
-      storageLoadedSafely=true;
-    }catch(e){
-      storageLoadedSafely=false;
-      console.error('Storage load failed; existing localStorage will not be overwritten.',e);
-    }
+    }catch(_){ failed=true; }
+    storageLoadedSafely=!failed;
+    if(failed) storageStatus('อ่านข้อมูลในเครื่องไม่สำเร็จ · ยังไม่ได้เขียนทับข้อมูลเดิม');
+    else if(loadedExpensesRaw===null) storageStatus('ไม่พบสมุดรายจ่ายในพื้นที่จัดเก็บนี้ · ถ้าเคยบันทึกไว้ ให้ดู Backup & Restore');
   }
 
   function getBackupHistory(){
-    try{const h=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(h)?h:[];}catch(_){return [];}
-  }
-  function snapshotCurrent(reason='Auto Backup'){
-    if(!storageLoadedSafely)return;
     try{
-      const er=localStorage.getItem(STORAGE_KEY),sr=localStorage.getItem(SETTINGS_KEY);
-      if(!er&&!sr)return;
-      const eo=er?JSON.parse(er):{expenses:[]},so=sr?JSON.parse(sr):{};
-      const expenses=Array.isArray(eo?.expenses)?eo.expenses:[];
-      const h=getBackupHistory();
-      const snap={id:Date.now()+'-'+Math.random().toString(36).slice(2,7),at:new Date().toISOString(),reason,expenseCount:expenses.length,expenses:eo,settings:so};
-      const last=h[0],same=last&&JSON.stringify(last.expenses)===JSON.stringify(snap.expenses)&&JSON.stringify(last.settings)===JSON.stringify(snap.settings);
-      if(!same){h.unshift(snap);localStorage.setItem(HISTORY_KEY,JSON.stringify(h.slice(0,HISTORY_LIMIT)));}
-    }catch(e){console.warn('Backup snapshot failed',e);}
+      const list=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+      return Array.isArray(list) ? list.filter(b=>b && typeof b.id==='string' && Array.isArray(b.expenses?.expenses) && b.expenses.expenses.every(x=>x && typeof x==='object' && !Array.isArray(x))).slice(0,HISTORY_LIMIT) : [];
+    }catch(_){ return []; }
   }
-  function fmtBackupTime(iso){
-    try{return new Intl.DateTimeFormat('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(iso));}catch(_){return iso||'';}
+  function snapshotCurrent(reason, er, sr){
+    const expenses=readExpenses(er)||{expenses:[]};
+    const settings=readObject(sr)||{};
+    if(er===null && sr===null) return;
+    const h=getBackupHistory();
+    if(h.length && JSON.stringify(h[0].expenses)===JSON.stringify(expenses) && JSON.stringify(h[0].settings)===JSON.stringify(settings)) return;
+    h.unshift({id:Date.now()+'-'+Math.random().toString(36).slice(2),at:new Date().toISOString(),reason,expenses,settings});
+    localStorage.setItem(HISTORY_KEY,JSON.stringify(h.slice(0,HISTORY_LIMIT)));
+  }
+  function availableBackups(){
+    const h=getBackupHistory();
+    try{
+      const expenses=readExpenses(localStorage.getItem(STORAGE_BACKUP_KEY));
+      if(expenses?.expenses.length && !h.some(x=>JSON.stringify(x.expenses)===JSON.stringify(expenses))){
+        let settings={};
+        try { settings=readObject(localStorage.getItem(SETTINGS_BACKUP_KEY))||{}; } catch(_){}
+        h.push({id:'legacy-last-good',reason:'สำเนาจากเวอร์ชันก่อน',expenses,settings});
+      }
+    }catch(_){}
+    return h;
   }
   function renderBackupHistory(){
-    const box=$('backupHistory');if(!box)return;const h=getBackupHistory();
-    if(!h.length){box.innerHTML='<div class="backup-empty">ยังไม่มี Backup — ระบบจะสร้างให้อัตโนมัติก่อนการเปลี่ยนข้อมูลครั้งถัดไป</div>';return;}
-    box.innerHTML=h.map(b=>`<div class="backup-item"><div><div class="backup-time">${escapeHtml(fmtBackupTime(b.at))}</div><div class="backup-count">${Number(b.expenseCount)||0} expenses · ${escapeHtml(b.reason||'Backup')}</div></div><button class="backup-restore" type="button" data-restore-backup="${escapeHtml(b.id)}">Restore</button></div>`).join('');
+    const h=availableBackups();
+    $('backupHistory').innerHTML=h.length ? h.map(b=>{
+      const d=new Date(b.at);
+      const time=Number.isFinite(d.getTime()) ? d.toLocaleString('th-TH') : 'ไม่ระบุเวลา';
+      return `<div class="backup-item"><div><div class="backup-time">${esc(time)}</div><div class="backup-count">${b.expenses.expenses.length} รายการ · ${esc(b.reason||'Backup')}</div></div><button class="backup-restore" type="button" data-restore-backup="${esc(b.id)}">Restore</button></div>`;
+    }).join('') : '<div class="backup-empty">ไม่พบ Backup ในพื้นที่จัดเก็บนี้</div>';
   }
   function restoreBackup(id){
-    const b=getBackupHistory().find(x=>x.id===id);if(!b)return;
-    if(!confirm(`Restore backup นี้ (${Number(b.expenseCount)||0} expenses)?\nข้อมูลปัจจุบันจะถูก Backup ไว้ก่อน Restore`))return;
-    snapshotCurrent('Before restore');
-    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(b.expenses||{expenses:[]}));localStorage.setItem(SETTINGS_KEY,JSON.stringify(b.settings||{}));location.reload();}
-    catch(e){alert('Restore ไม่สำเร็จ: '+e.message);}
+    const b=availableBackups().find(x=>x.id===id);
+    if(!b || syncInFlight) return;
+    if(!confirm(`คืนข้อมูลสำรอง ${b.expenses.expenses.length} รายการ? ข้อมูลและการตั้งค่าในเครื่องจะถูกแทนที่ โดยไม่เปลี่ยนปลายทาง Online Sync`)) return;
+    try{
+      const er=localStorage.getItem(STORAGE_KEY), sr=localStorage.getItem(SETTINGS_KEY);
+      try{ snapshotCurrent('ก่อน Restore',er,sr); }
+      catch(err){
+        // Preserve unreadable data verbatim before a user-confirmed recovery.
+        localStorage.setItem(HISTORY_KEY+'-recovery-raw',JSON.stringify({expenses:er,settings:sr}));
+      }
+      const settings={...b.settings,syncUrl:syncState.url,syncMode:syncState.mode,syncCutoffAt:syncState.cutoffAt,syncPending:false,lastSyncedAt:'',lastSyncError:'',syncDeleted:[]};
+      writeStorage(JSON.stringify(b.expenses),JSON.stringify(settings),er,sr);
+      clearTimeout(syncTimer);
+      location.reload();
+    }catch(_){ storageStatus('Restore ไม่สำเร็จ · ยังไม่ได้ยืนยันการบันทึก'); }
   }
-
+  function writeStorage(expenses,settings,oldExpenses,oldSettings){
+    let savedE=false,savedS=false;
+    try{
+      if(expenses!==oldExpenses){localStorage.setItem(STORAGE_KEY,expenses);savedE=true;}
+      if(settings!==oldSettings){localStorage.setItem(SETTINGS_KEY,settings);savedS=true;}
+      if(localStorage.getItem(STORAGE_KEY)!==expenses || localStorage.getItem(SETTINGS_KEY)!==settings) throw new Error('Verify failed');
+    }catch(err){
+      function rollback(key,written,previous,attempted){
+        try{
+          if(written && localStorage.getItem(key)===attempted){
+            if(previous===null) localStorage.removeItem(key);
+            else localStorage.setItem(key,previous);
+          }
+        }catch(_){}
+      }
+      rollback(STORAGE_KEY,savedE,oldExpenses,expenses);
+      rollback(SETTINGS_KEY,savedS,oldSettings,settings);
+      throw err;
+    }
+  }
   function persist(){
-    if(!storageLoadedSafely){
-      console.warn('Persist blocked because storage did not load safely.');
-      return;
-    }
-
-    snapshotCurrent('Auto Backup');
-    const existingExpenses=localStorage.getItem(STORAGE_KEY);
-    const existingSettings=localStorage.getItem(SETTINGS_KEY);
-
-    // Keep a last-known-good snapshot before every write.
-    if(existingExpenses){
-      try{
-        const parsed=JSON.parse(existingExpenses);
-        if(parsed && Array.isArray(parsed.expenses)){
-          localStorage.setItem(STORAGE_BACKUP_KEY,existingExpenses);
-        }
-      }catch(_){}
-    }
-    if(existingSettings){
-      try{
-        JSON.parse(existingSettings);
-        localStorage.setItem(SETTINGS_BACKUP_KEY,existingSettings);
-      }catch(_){}
-    }
-
-    localStorage.setItem(STORAGE_KEY,JSON.stringify({expenses:state.expenses}));
-    localStorage.setItem(SETTINGS_KEY,JSON.stringify({
-      tripName:state.tripName,categories:state.categories,payments:state.payments,currencies:state.currencies,people,ownerId:ME,
-      syncUrl:syncState.url,syncMode:syncState.mode,syncCutoffAt:syncState.cutoffAt,syncPending:syncState.pending,
-      lastSyncedAt:syncState.lastSyncedAt,lastSyncError:syncState.lastError,syncDeleted:syncState.deleted
-    }));
+    if(!storageLoadedSafely){storageStatus('ยังไม่ได้บันทึก · อ่านข้อมูลเดิมไม่สำเร็จ');return false;}
+    try{
+      const er=localStorage.getItem(STORAGE_KEY), sr=localStorage.getItem(SETTINGS_KEY);
+      if(er!==loadedExpensesRaw || sr!==loadedSettingsRaw){
+        storageStatus('ข้อมูลในเครื่องเปลี่ยนจากหน้าอื่น · Export JSON หากต้องการเก็บการแก้ไข แล้วเปิดหน้าใหม่');
+        return false;
+      }
+      const expenses=JSON.stringify({expenses:state.expenses});
+      const settings=JSON.stringify({
+        tripName:state.tripName,categories:state.categories,payments:state.payments,currencies:state.currencies,people,ownerId:ME,
+        syncUrl:syncState.url,syncMode:syncState.mode,syncCutoffAt:syncState.cutoffAt,syncPending:syncState.pending,
+        lastSyncedAt:syncState.lastSyncedAt,lastSyncError:syncState.lastError,syncDeleted:syncState.deleted
+      });
+      const business=raw=>{const {syncUrl,syncMode,syncCutoffAt,syncPending,lastSyncedAt,lastSyncError,syncDeleted,...rest}=readObject(raw)||{};return JSON.stringify(rest);};
+      const changed=expenses!==er || business(settings)!==business(sr);
+      if(changed) snapshotCurrent('ก่อนแก้ไข',er,sr);
+      writeStorage(expenses,settings,er,sr);
+      loadedExpensesRaw=expenses;
+      loadedSettingsRaw=settings;
+      storageStatus('บันทึกในเครื่องแล้ว');
+      renderBackupHistory();
+      return true;
+    }catch(_){storageStatus('บันทึกในเครื่องไม่สำเร็จ · อย่าเพิ่งปิดหน้า และใช้ Export JSON เก็บข้อมูลไว้');return false;}
   }
-
 
   function fmtSyncTime(iso){
     if(!iso) return '';
@@ -1456,12 +1501,16 @@
   }
 
   function markSyncDirty(){
-    if(!syncState.url) return;
-    syncState.pending=true;
-    syncState.lastError='';
-    persist();
+    const previousPending=syncState.pending, previousError=syncState.lastError;
+    if(syncState.url){ syncState.pending=true; syncState.lastError=''; }
+    if(!persist()){
+      syncState.pending=previousPending;
+      syncState.lastError=previousError;
+      return false;
+    }
     renderSyncStatus();
     scheduleAutoSync();
+    return true;
   }
 
   function scheduleAutoSync(delay=650){
@@ -1471,7 +1520,7 @@
   }
 
   async function performSync({forceAll=false}={}){
-    if(!syncState.url || syncInFlight) return false;
+    if(!storageLoadedSafely || !syncState.url || syncInFlight) return false;
     if(!navigator.onLine){
       syncState.pending=true;
       persist();
@@ -1535,7 +1584,7 @@
 
   function calc(){
     const amount=Number($('amount').value)||0;
-    const fx=Number($('fx').value)||0;
+    const fx=$('currency').value==='THB'?1:(Number($('fx').value)||0);
     const participants=selectedParticipants();
     const split=participants.length||1;
     const currency=$('currency').value || 'THB';
@@ -1558,6 +1607,7 @@
   function preview(){
     const x = calc(), payers=selectedPayers();
     if(!x.amount){ $('preview').textContent='กรอกยอดเงินเพื่อดู Net Expense'; return; }
+    if(!x.fx || x.fx<0){ $('preview').textContent='รอเรท FX หรือกรอกเรทเองเพื่อดูยอดเงินบาท'; return; }
     const participants=x.participants;
     const othersWhoOwe = payers.includes(ME)
       ? participants.filter(p=>p!==ME && !payers.includes(p))
@@ -1787,13 +1837,16 @@
       repaidToMe:existing&&existing.repaidToMe?existing.repaidToMe:{},
       updatedAt:new Date().toISOString()
     };
-    if(!rec.detail||!rec.amount||!rec.split){alert('กรุณาเลือกอย่างน้อย 1 คนใน “ใครหารบ้าง”');return;}
+    if(!rec.detail || !rec.date || !Number.isFinite(rec.amount) || rec.amount<=0){alert('กรุณากรอกรายการ วันที่ และยอดมากกว่า 0');return;}
+    if(!x.participants.length || !rec.payers.length){alert('กรุณาเลือกคนหารและคนจ่ายอย่างน้อยอย่างละ 1 คน');return;}
+    if(!Number.isFinite(rec.fx) || rec.fx<=0 || !Number.isFinite(rec.totalTHB)){alert('กรุณากรอก FX ที่มากกว่า 0 ก่อนบันทึก');return;}
+    const previous=state.expenses.slice();
     if(state.editingId){
       const i=state.expenses.findIndex(v=>v.id===state.editingId);
       if(i>=0) state.expenses[i]=rec;
     }else state.expenses.unshift(rec);
+    if(!markSyncDirty()){state.expenses=previous;alert('ยังไม่ได้บันทึก · กรุณาดูข้อความที่ด้านบน');return;}
     resetForm(); render();
-    markSyncDirty();
   });
 
   $('amount').addEventListener('input',preview);
@@ -1805,6 +1858,7 @@
   });
 
   $('fx').addEventListener('input',()=>{
+    ++fxRequestSeq;
     fxManual=true;
     setFxStatus('Manual · แก้เรทเอง');
     preview();
@@ -1850,7 +1904,12 @@
 
   $('confirmDelete').addEventListener('click',()=>{
     if(deletePendingId!==null){
-      state.expenses=state.expenses.filter(v=>v.id!==deletePendingId);
+      const previous=state.expenses;
+      const deleted=syncState.deleted.slice();
+      const row=previous.find(x=>x.id===deletePendingId);
+      if(syncState.url && row && eligibleExpenses().includes(row)) syncState.deleted.push({id:row.id,deletedAt:new Date().toISOString()});
+      state.expenses=previous.filter(v=>v.id!==deletePendingId);
+      if(!markSyncDirty()){state.expenses=previous;syncState.deleted=deleted;alert('ยังลบไม่ได้ · บันทึกลงเครื่องไม่สำเร็จ');return;}
       deletePendingId=null;
       $('deleteDialog').classList.add('hidden');
       render();
@@ -2054,10 +2113,10 @@
       return;
     }
 
+    const previous=state.tripName;
     state.tripName=name;
+    if(!markSyncDirty()){state.tripName=previous;$('tripInfoStatus').textContent='ยังไม่ได้บันทึกชื่อ';return;}
     renderTripInfo();
-    persist();
-    markSyncDirty();
 
     $('tripInfoStatus').textContent='Saved';
     setTimeout(()=>{
@@ -2066,6 +2125,7 @@
   });
 
   $('openSettings').addEventListener('click',()=>{
+    renderBackupHistory();
     $('settingsPanel').classList.remove('hidden');
     $('openSettings').closest('.settings-launch-wrap').classList.add('hidden');
     $('settingsPanel').scrollIntoView({behavior:'smooth',block:'start'});
@@ -2085,8 +2145,10 @@
     if(payBack){
       const x=state.expenses.find(v=>v.id===Number(payBack.dataset.repaid));
       if(x){
+        const oldMap={...settlementMap(x)}, oldTime=x.updatedAt;
         settlementMap(x)[ME]=payBack.checked;
         x.updatedAt=new Date().toISOString();
+        if(!markSyncDirty()){x.settledByPerson=oldMap;x.updatedAt=oldTime;alert('ยังไม่ได้บันทึกสถานะคืนเงิน');}
         render();
       }
       return;
@@ -2097,8 +2159,10 @@
       const x=state.expenses.find(v=>v.id===Number(paidToMe.dataset.repaidToMe));
       if(x){
         const person=paidToMe.dataset.person;
+        const oldMap={...settlementMap(x)}, oldTime=x.updatedAt;
         settlementMap(x)[person]=paidToMe.checked;
         x.updatedAt=new Date().toISOString();
+        if(!markSyncDirty()){x.settledByPerson=oldMap;x.updatedAt=oldTime;alert('ยังไม่ได้บันทึกสถานะคืนเงิน');}
         render();
       }
     }
@@ -2126,8 +2190,9 @@
       $('date').value=x.date;
       renderCategories(x.category);
       $('detail').value=x.detail;
-      $('currency').value=x.currency;
+      renderCurrencies(x.currency,true);
       $('amount').value=x.amount;
+      ++fxRequestSeq;
       $('fx').value=x.fx;
       fxManual=true;
       setFxStatus('Saved FX · กด Auto FX หรือเปลี่ยนวันจ่ายเพื่ออัปเดต');
@@ -2268,14 +2333,16 @@
   });
   window.addEventListener('offline',renderSyncStatus);
 
-  $('exportJson').addEventListener('click',()=>{
+  function exportExpenses(){
     const blob=new Blob([JSON.stringify({trip:state.tripName,owner:ME,people,expenses:state.expenses},null,2)],{type:'application/json'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
     a.download='trip-expenses.json';
     a.click();
-    URL.revokeObjectURL(a.href);
-  });
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+  $('exportJson').addEventListener('click',exportExpenses);
+  $('exportBackup').addEventListener('click',exportExpenses);
 
   let calcExpr='';
 
@@ -2352,27 +2419,13 @@
     }
   });
 
-  function tryRestoreBackupIfPrimaryEmpty(){
-    if(!storageLoadedSafely) return;
-    try{
-      const primary=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
-      const backup=JSON.parse(localStorage.getItem(STORAGE_BACKUP_KEY)||'null');
-      const primaryCount=primary&&Array.isArray(primary.expenses)?primary.expenses.length:0;
-      const backupCount=backup&&Array.isArray(backup.expenses)?backup.expenses.length:0;
-      if(primaryCount===0 && backupCount>0){
-        state.expenses=backup.expenses;
-        localStorage.setItem(STORAGE_KEY,JSON.stringify({expenses:state.expenses}));
-      }
-    }catch(_){}
-  }
-
   document.addEventListener('click',(e)=>{
     const btn=e.target.closest('[data-restore-backup]');
     if(btn)restoreBackup(btn.dataset.restoreBackup);
   });
 
-  load(); tryRestoreBackupIfPrimaryEmpty(); renderTripInfo(); renderBackupHistory(); renderCategories(); renderPayments(); renderCurrencies('CNY'); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); renderSyncStatus(); fetchFxForDate({force:true});
-  if(syncState.url && syncState.pending) scheduleAutoSync(900);
+  load(); renderTripInfo(); renderCategories(); renderPayments(); renderCurrencies('CNY'); renderPeopleMenus(); renderOwnerSelect(); $('date').value=todayLocalISO(); setParticipants([ME]); setPayers([ME]); preview(); render(); renderSyncStatus(); renderBackupHistory(); fetchFxForDate({force:true});
+  if(storageLoadedSafely && syncState.url && syncState.pending) scheduleAutoSync(900);
 
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
